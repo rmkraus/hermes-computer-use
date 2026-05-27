@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -214,7 +215,7 @@ class SafetyChecker:
         Returns:
             SafetyCheckResult with safe/limited status.
         """
-        now = self._action_timestamps[-1] if self._action_timestamps else 0
+        now = time.time()
 
         # Count actions in the last minute
         recent_actions = [t for t in self._action_timestamps if t > now - 60]
@@ -234,12 +235,10 @@ class SafetyChecker:
 
     def record_action(self) -> None:
         """Record an action for rate limiting."""
-        from datetime import datetime
-
-        self._action_timestamps.append(datetime.now().timestamp())
+        self._action_timestamps.append(time.time())
 
         # Clean up old timestamps (older than 5 minutes)
-        cutoff = datetime.now().timestamp() - 300
+        cutoff = time.time() - 300
         self._action_timestamps = [
             t for t in self._action_timestamps if t > cutoff
         ]

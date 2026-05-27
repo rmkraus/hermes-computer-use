@@ -110,7 +110,7 @@ class TestWindowInfo:
         )
         assert w.window_id == "12345"
         assert w.title == "Firefox"
-        assert w.geometry == "0x1920+0+1080"
+        assert w.geometry == "1920x1080+0+0"
 
     def test_window_geometry_format(self):
         """Test geometry formatting."""
@@ -124,7 +124,7 @@ class TestWindowInfo:
             width=800,
             height=600,
         )
-        assert w.geometry == "100x800+200+600"
+        assert w.geometry == "800x600+100+200"
 
 
 class TestWindowManagerEdgeCases:

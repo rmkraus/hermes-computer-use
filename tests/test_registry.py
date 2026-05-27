@@ -134,7 +134,7 @@ class TestBuiltInTools:
         """Test screenshot tool is registered."""
         assert "screenshot" in TOOLS
         assert TOOLS["screenshot"].requires_display is True
-        assert "Pillow" in TOOLS["screenshot"].dependencies
+        assert "PIL" in TOOLS["screenshot"].dependencies
 
     def test_input_mouse_registered(self):
         """Test input_mouse tool is registered."""

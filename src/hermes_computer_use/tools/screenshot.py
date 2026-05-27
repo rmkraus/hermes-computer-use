@@ -82,7 +82,7 @@ def capture_screenshot(
 
     Args:
         region: Optional (x, y, width, height) to capture only part of the screen.
-        max_dimension: Maximum width or height for the output image.
+        max_dimension: Maximum width or height for the output image. Pass 0 to disable resizing.
 
     Returns:
         Screenshot with PNG data, dimensions, and metadata.
@@ -102,8 +102,8 @@ def capture_screenshot(
         try:
             screenshot = method(region)
             if screenshot:
-                # Resize if needed
-                if max(screenshot.width, screenshot.height) > max_dimension:
+                # Resize if needed (max_dimension=0 means no cap)
+                if max_dimension > 0 and max(screenshot.width, screenshot.height) > max_dimension:
                     screenshot = screenshot.resize(max_dimension)
                 return screenshot
         except Exception as exc:
@@ -130,15 +130,8 @@ def _capture_scrot(region: tuple[int, int, int, int] | None) -> Screenshot | Non
         ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, timeout=10, check=True
-        )
-        path = cmd[-2] if region else cmd[-1]
-        # Remove the filename from the command list
-        if region:
-            path = "/tmp/hermes_screenshot_{}.png".format(os.getpid())
-        else:
-            path = "/tmp/hermes_screenshot_{}.png".format(os.getpid())
+        subprocess.run(cmd, capture_output=True, timeout=10, check=True)
+        path = "/tmp/hermes_screenshot_{}.png".format(os.getpid())
 
         with open(path, "rb") as f:
             data = f.read()
@@ -261,9 +254,9 @@ def zoom_screenshot(
     if width <= 0 or height <= 0:
         raise ValueError(f"Region dimensions must be positive, got {width}x{height}")
 
-    # Capture exactly the requested region (no max_dimension cap here — we
-    # want the raw pixels so we can upscale deliberately below).
-    shot = capture_screenshot(region=(x, y, width, height), max_dimension=99999)
+    # Capture exactly the requested region (no max_dimension cap — we want
+    # raw pixels so we can upscale deliberately below).
+    shot = capture_screenshot(region=(x, y, width, height), max_dimension=0)
 
     from PIL import Image
 

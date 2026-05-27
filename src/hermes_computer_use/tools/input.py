@@ -14,7 +14,6 @@ try:
     import pyautogui
 except ImportError:
     pyautogui = None  # type: ignore[assignment]
-
 logger = logging.getLogger(__name__)
 
 
@@ -107,13 +106,13 @@ class InputSimulator:
         self.mouse_move_duration = mouse_move_duration
         self.pause = pause
         self.pag = pag or pyautogui
-        if self.pag:
-            self.pag.FAILSAFE = True
-            self.pag.PAUSE = pause
-        else:
-            self.pag = MagicMock()  # type: ignore[assignment]
-            self.pag.FAILSAFE = True
-            self.pag.PAUSE = pause
+        if self.pag is None:
+            raise RuntimeError(
+                "pyautogui is not installed. "
+                "Install it with: pip install pyautogui"
+            )
+        self.pag.FAILSAFE = True
+        self.pag.PAUSE = pause
         self._screen_width, self._screen_height = self._get_screen_size()
 
     def _get_screen_size(self) -> tuple[int, int]:

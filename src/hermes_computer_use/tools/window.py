@@ -26,8 +26,8 @@ class WindowInfo:
 
     @property
     def geometry(self) -> str:
-        """Format geometry as X11-style string."""
-        return f"{self.x}x{self.width}+{self.y}+{self.height}"
+        """Format geometry as X11-style string (WIDTHxHEIGHT+X+Y)."""
+        return f"{self.width}x{self.height}+{self.x}+{self.y}"
 
 
 @dataclass

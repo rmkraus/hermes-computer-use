@@ -185,7 +185,7 @@ class DesktopActionExecutor:
         """
         try:
             # Press Super key to open application launcher
-            self.input_simulator.press_key("command")
+            self.input_simulator.press_key("super")
             time.sleep(0.5)
 
             # Type search text
@@ -234,17 +234,6 @@ class DesktopActionExecutor:
             }
 
     def execute_sequence(self, actions: list[dict[str, Any]]) -> list[ActionResult]:
-        """Execute a sequence of actions.
-
-        Args:
-            actions: List of action dicts with 'action' and 'params' keys.
-
-        Returns:
-            List of results for each action.
-        """
-        return self._execute_sequence(actions)
-
-    def _execute_sequence(self, actions: list[dict[str, Any]]) -> list[ActionResult]:
         """Execute a sequence of actions.
 
         Args:

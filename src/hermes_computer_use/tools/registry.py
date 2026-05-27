@@ -66,7 +66,7 @@ register_tool(
         name="screenshot",
         description="Capture a screenshot of the current screen. Returns base64-encoded PNG image.",
         requires_display=True,
-        dependencies=["Pillow"],
+        dependencies=["PIL"],
     )
 )
 
@@ -75,7 +75,7 @@ register_tool(
         name="input_mouse",
         description="Simulate mouse input: click, move, scroll. Supports left/right/middle clicks, scrolling, and absolute positioning.",
         requires_display=True,
-        dependencies=["pyautogui", "Pillow"],
+        dependencies=["pyautogui", "PIL"],
     )
 )
 
@@ -93,7 +93,7 @@ register_tool(
         name="window_manage",
         description="Window management: list open windows, focus a window, get window info, move/resize windows.",
         requires_display=True,
-        dependencies=["Pillow"],
+        dependencies=[],
     )
 )
 
