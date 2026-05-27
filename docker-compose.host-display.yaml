@@ -1,0 +1,31 @@
+# docker-compose.host-display.yaml
+# Override to drive the host's real X display instead of an internal Xvfb.
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml up -d
+#
+# Or set an alias in your shell:
+#   alias cu-host="docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml"
+#
+# Requirements on the host (run once per session):
+#   xhost +local:docker   # allow the container's root user to connect
+#
+# DISPLAY and XAUTHORITY are forwarded from your shell environment automatically.
+# If DISPLAY is unset, it defaults to :0.
+# If XAUTHORITY is unset, it defaults to ~/.Xauthority.
+
+services:
+  computer-use:
+    environment:
+      DISPLAY: "${DISPLAY:-:0}"
+      XAUTHORITY: "/tmp/.host-Xauthority"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Mount the host Xauthority file into a fixed path inside the container.
+      # We use a fixed destination path so the entrypoint can always find it,
+      # regardless of whether the host path is /root/.Xauthority, /home/user/.Xauthority,
+      # or a session-specific path like /run/user/1000/gdm/Xauthority.
+      - "${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.host-Xauthority:ro"
+    # host networking gives the container the same localhost as the host —
+    # useful when the LLM is running locally (vLLM, Ollama, etc.)
+    # network_mode: host

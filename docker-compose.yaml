@@ -4,31 +4,46 @@ services:
     image: hermes-computer-use:latest
     container_name: hermes-computer-use
     ports:
-      - "8000:8000"   # NAT agent (react_agent loop)
-      - "8001:8001"   # Direct tool REST API (used by Hermes nat_backend)
+      - "8000:8000"   # NAT agent (react_agent loop → full goal delegation)
+      - "8001:8001"   # Direct tool REST API (spot screenshots etc.)
     environment:
-      # Required: LLM provider API key (pick one)
+      # ── LLM provider (pick one) ─────────────────────────────────────────────
       NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
 
-      # Optional: override model or point to a local vLLM instance
+      # ── Optional overrides ───────────────────────────────────────────────────
       # LLM_MODEL: "meta/llama-4-scout-17b-16e-instruct"
-      # LLM_BASE_URL: "http://vllm:8080/v1"
+      # LLM_BASE_URL: "http://host.docker.internal:8080/v1"  # local vLLM
 
-      # Display settings (Xvfb is started automatically inside the container)
+      # ── Display (default: Xvfb virtual display) ──────────────────────────────
+      # To use the host's real X display instead, uncomment the block below
+      # and also uncomment the volumes section.
+      #
+      # DISPLAY: "${DISPLAY:-:0}"
       DISPLAY_NUM: "1"
       SCREEN_RESOLUTION: "1920x1080x24"
+
     restart: unless-stopped
     shm_size: "256m"
-    # Mount real X11 socket if you want the agent to control the host display
-    # instead of the internal Xvfb virtual display:
-    # volumes:
-    #   - /tmp/.X11-unix:/tmp/.X11-unix
-    #   - /run/user/1000/bus:/run/user/1000/bus
-    # environment:
-    #   DISPLAY: ":0"
 
-  # ── Observability (optional) ────────────────────────────────────────────
+    # ── Host display (use the override file instead — it's easier) ──────────
+    # Preferred:
+    #   docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml up -d
+    #
+    # Or manually uncomment the block below.  Run `xhost +local:docker` on the
+    # host first, and ensure XAUTHORITY is set in your shell environment.
+    #
+    # volumes:
+    #   - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    #   - "${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.host-Xauthority:ro"
+    # environment:
+    #   DISPLAY: "${DISPLAY:-:0}"
+    #   XAUTHORITY: "/tmp/.host-Xauthority"
+    # # host networking gives the container the same localhost as the host
+    # # (useful when the LLM is running on the host):
+    # # network_mode: host
+
+  # ── Observability (optional) ──────────────────────────────────────────────
   # Uncomment to enable Phoenix tracing UI at http://localhost:6006
   # phoenix:
   #   image: arizephoenix/phoenix:latest
