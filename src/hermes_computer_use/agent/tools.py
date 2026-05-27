@@ -1,14 +1,14 @@
-"""LangChain tool wrappers for Ubuntu desktop automation.
+"""LangChain tools for Ubuntu desktop automation.
 
-Each tool is a plain annotated function — LangChain infers the JSON schema
-from type hints and the Args section of each docstring.
-``get_computer_use_tools()`` returns a fresh list of StructuredTool instances.
+Each function is decorated with ``@tool(parse_docstring=True)``, which infers
+the JSON schema from type annotations and the ``Args:`` section of the docstring.
+Import ``TOOLS`` directly — the decorated names are already ``StructuredTool`` instances.
 """
 from __future__ import annotations
 
 import subprocess
 
-from langchain_core.tools import StructuredTool
+from langchain_core.tools import tool
 
 from hermes_computer_use.safety.checker import SafetyChecker
 from hermes_computer_use.tools.screenshot import (
@@ -18,15 +18,14 @@ from hermes_computer_use.tools.screenshot import (
 )
 from hermes_computer_use.tools.window import WindowManager
 
-# Module-level checker — shared across all tools, stateless after removing rate limiting
 _safety = SafetyChecker()
 
-
 # ---------------------------------------------------------------------------
-# Tool functions
+# Tools
 # ---------------------------------------------------------------------------
 
 
+@tool(parse_docstring=True)
 def take_screenshot(max_dimension: int = 0) -> str:
     """Capture a full-screen screenshot and return a base64 PNG data URI.
 
@@ -43,6 +42,7 @@ def take_screenshot(max_dimension: int = 0) -> str:
         return f"Screenshot failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def zoom_region(x: int, y: int, width: int, height: int, output_size: int = 1024) -> str:
     """Zoom into a rectangular region of the screen and return a base64 PNG.
 
@@ -65,6 +65,7 @@ def zoom_region(x: int, y: int, width: int, height: int, output_size: int = 1024
         return f"Zoom failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def click(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
     """Click the mouse at a screen position.
 
@@ -88,6 +89,7 @@ def click(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
         return f"Click failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def move_mouse(x: int, y: int, duration: float = 0.1) -> str:
     """Move the mouse cursor to a screen position without clicking.
 
@@ -107,6 +109,7 @@ def move_mouse(x: int, y: int, duration: float = 0.1) -> str:
         return f"Move failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def scroll(x: int, y: int, amount: int) -> str:
     """Scroll the mouse wheel at a screen position.
 
@@ -126,6 +129,7 @@ def scroll(x: int, y: int, amount: int) -> str:
         return f"Scroll failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def type_text(text: str, interval: float = 0.02) -> str:
     """Type a string of text using the keyboard.
 
@@ -147,6 +151,7 @@ def type_text(text: str, interval: float = 0.02) -> str:
         return f"Type failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def key_press(keys: str) -> str:
     """Press keyboard keys or hotkey combinations.
 
@@ -177,6 +182,7 @@ def key_press(keys: str) -> str:
         return f"Key press failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def list_windows() -> str:
     """List all visible windows currently open on the desktop.
 
@@ -193,6 +199,7 @@ def list_windows() -> str:
         return f"list_windows failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def focus_window(window_id: str) -> str:
     """Bring a window to the foreground.
 
@@ -211,6 +218,7 @@ def focus_window(window_id: str) -> str:
         return f"focus_window failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def run_command(command: str, timeout: int = 30) -> str:
     """Run a shell command with ``bash -c`` and return its stdout + stderr.
 
@@ -239,6 +247,7 @@ def run_command(command: str, timeout: int = 30) -> str:
         return f"Command failed: {exc}"
 
 
+@tool(parse_docstring=True)
 def get_screen_info() -> str:
     """Get current screen resolution and display server info (X11/Wayland/none).
 
@@ -260,33 +269,19 @@ def get_screen_info() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Public factory
+# Tool list — import this in agent.py
 # ---------------------------------------------------------------------------
 
-_TOOLS = [
-    StructuredTool.from_function(take_screenshot, parse_docstring=True),
-    StructuredTool.from_function(zoom_region, parse_docstring=True),
-    StructuredTool.from_function(click, parse_docstring=True),
-    StructuredTool.from_function(move_mouse, parse_docstring=True),
-    StructuredTool.from_function(scroll, parse_docstring=True),
-    StructuredTool.from_function(type_text, parse_docstring=True),
-    StructuredTool.from_function(key_press, parse_docstring=True),
-    StructuredTool.from_function(list_windows, parse_docstring=True),
-    StructuredTool.from_function(focus_window, parse_docstring=True),
-    StructuredTool.from_function(run_command, parse_docstring=True),
-    StructuredTool.from_function(get_screen_info, parse_docstring=True),
+TOOLS = [
+    take_screenshot,
+    zoom_region,
+    click,
+    move_mouse,
+    scroll,
+    type_text,
+    key_press,
+    list_windows,
+    focus_window,
+    run_command,
+    get_screen_info,
 ]
-
-
-def get_computer_use_tools(safety_checker: SafetyChecker | None = None) -> list:
-    """Return all computer-use LangChain tools.
-
-    Args:
-        safety_checker: Unused — retained for API compatibility. The module-level
-            ``_safety`` instance is used. Pass a custom checker only in tests that
-            need to inspect checker state directly.
-
-    Returns:
-        List of LangChain StructuredTool instances.
-    """
-    return list(_TOOLS)

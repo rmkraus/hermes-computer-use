@@ -17,7 +17,7 @@ from deepagents import create_deep_agent
 from nat.builder.framework_enum import LLMFrameworkEnum
 from nat.builder.sync_builder import SyncBuilder
 
-from hermes_computer_use.agent.tools import get_computer_use_tools
+from hermes_computer_use.agent.tools import TOOLS
 
 SYSTEM_PROMPT = """\
 You are a Ubuntu desktop automation agent. You control a real Ubuntu desktop
@@ -45,6 +45,6 @@ model = SyncBuilder.current().get_llm("agent", wrapper_type=LLMFrameworkEnum.LAN
 
 agent = create_deep_agent(
     model=model,
-    tools=get_computer_use_tools(),
+    tools=TOOLS,
     system_prompt=SYSTEM_PROMPT,
 )

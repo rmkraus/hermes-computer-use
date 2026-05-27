@@ -1,4 +1,4 @@
-"""Tests for agent/tools.py — LangChain StructuredTool wrappers.
+"""Tests for agent/tools.py — LangChain @tool decorated functions.
 
 All tests run without a real display or LLM by mocking pyautogui,
 screenshot capture, and window manager calls.
@@ -9,14 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hermes_computer_use.safety.checker import SafetyChecker
-
-
-@pytest.fixture()
-def safety():
-    """Fresh SafetyChecker for each test."""
-    return SafetyChecker()
-
 
 @pytest.fixture()
 def mock_pag():
@@ -25,10 +17,10 @@ def mock_pag():
 
 
 @pytest.fixture()
-def tools(safety):
-    """All computer-use tools bound to the test SafetyChecker."""
-    from hermes_computer_use.agent.tools import get_computer_use_tools
-    return {t.name: t for t in get_computer_use_tools(safety_checker=safety)}
+def tools():
+    """All computer-use tools."""
+    from hermes_computer_use.agent.tools import TOOLS
+    return {t.name: t for t in TOOLS}
 
 
 # ---------------------------------------------------------------------------
@@ -41,11 +33,9 @@ class TestToolsImport:
         """tools.py must import without crashing even with no DISPLAY set."""
         import hermes_computer_use.agent.tools  # noqa: F401
 
-    def test_get_computer_use_tools_returns_list(self, safety):
-        from hermes_computer_use.agent.tools import get_computer_use_tools
-        result = get_computer_use_tools(safety_checker=safety)
-        assert isinstance(result, list)
-        assert len(result) == 11
+    def test_tools_is_a_list_of_11(self, tools):
+        assert isinstance(tools, dict)
+        assert len(tools) == 11
 
     def test_tool_names(self, tools):
         expected = {
@@ -69,14 +59,6 @@ class TestToolsImport:
                 typing.get_type_hints(func)
             except TypeError as exc:
                 pytest.fail(f"Tool '{name}' func not introspectable by get_type_hints: {exc}")
-
-    def test_each_call_gets_independent_checker(self):
-        """Two calls to get_computer_use_tools return independently testable tool sets."""
-        from hermes_computer_use.agent.tools import get_computer_use_tools
-        s1, s2 = SafetyChecker(), SafetyChecker()
-        tools1 = get_computer_use_tools(safety_checker=s1)
-        tools2 = get_computer_use_tools(safety_checker=s2)
-        assert len(tools1) == len(tools2) == 11
 
 
 # ---------------------------------------------------------------------------
