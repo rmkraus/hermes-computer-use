@@ -1,0 +1,40 @@
+services:
+  computer-use:
+    build: .
+    image: hermes-computer-use:latest
+    container_name: hermes-computer-use
+    ports:
+      - "8000:8000"
+    environment:
+      # Required: LLM provider API key (pick one)
+      NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+
+      # Optional: override model or point to a local vLLM instance
+      # LLM_MODEL: "meta/llama-4-scout-17b-16e-instruct"
+      # LLM_BASE_URL: "http://vllm:8080/v1"
+
+      # Display settings (Xvfb is started automatically inside the container)
+      DISPLAY_NUM: "1"
+      SCREEN_RESOLUTION: "1920x1080x24"
+    restart: unless-stopped
+    shm_size: "256m"
+    # Mount real X11 socket if you want the agent to control the host display
+    # instead of the internal Xvfb virtual display:
+    # volumes:
+    #   - /tmp/.X11-unix:/tmp/.X11-unix
+    #   - /run/user/1000/bus:/run/user/1000/bus
+    # environment:
+    #   DISPLAY: ":0"
+
+  # ── Observability (optional) ────────────────────────────────────────────
+  # Uncomment to enable Phoenix tracing UI at http://localhost:6006
+  # phoenix:
+  #   image: arizephoenix/phoenix:latest
+  #   ports:
+  #     - "6006:6006"
+  #   volumes:
+  #     - phoenix_data:/mnt/user-data
+
+# volumes:
+#   phoenix_data:

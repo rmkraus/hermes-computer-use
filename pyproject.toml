@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-computer-use"
+version = "0.2.0"
+description = "Ubuntu desktop automation agent — powered by NVIDIA NeMo Agent Toolkit, served as an OpenAI-compatible API"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Ryan Kraus", email = "rmkraus@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Desktop Environment",
+]
+dependencies = [
+    # Desktop automation
+    "pyautogui>=0.9.54",
+    "Pillow>=10.0",
+    "python-xlib>=0.33",
+    # Utilities
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# Full NAT server (installs nvidia-nat + langchain integration)
+nat = [
+    "nvidia-nat[langchain]>=1.7.0",
+]
+# Development tools
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.12",
+    "pytest-asyncio>=0.23",
+    "mypy>=1.8",
+    "ruff>=0.4.0",
+]
+# X11 extras
+x11 = [
+    "python-xlib>=0.33",
+    "Pillow>=10.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+markers = [
+    "integration: requires X11 display server (skip in CI)",
+    "screenshot: involves actual screenshot capture",
+    "input: involves actual input simulation",
+    "nat: requires nvidia-nat to be installed",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
