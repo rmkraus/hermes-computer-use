@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     # Input automation
     xdotool \
-    # Python
-    python3.11 \
+    # Python (use distro default — 3.12 on Ubuntu 24.04)
+    python3 \
     python3-pip \
-    python3.11-venv \
+    python3-venv \
     curl \
     ca-certificates \
     # Desktop apps for the agent to control
@@ -30,8 +30,10 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src/ ./src/
 
-# Install with all optional extras
-RUN uv pip install --system -e ".[all]"
+# Install into a venv (avoids --break-system-packages on Python 3.12)
+ENV VIRTUAL_ENV=/app/.venv
+RUN uv venv "$VIRTUAL_ENV" && uv pip install -e ".[all]"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # ---------- entrypoint ----------
 COPY docker-entrypoint.sh /entrypoint.sh

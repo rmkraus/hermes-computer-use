@@ -29,23 +29,34 @@ logger = logging.getLogger(__name__)
 
 def _build_combined_app():
     """Mount both MCP and OpenAI API under one ASGI app."""
+    from contextlib import asynccontextmanager  # noqa: PLC0415
+
     from fastapi import FastAPI  # noqa: PLC0415
     from hermes_computer_use.server.mcp_server import create_mcp_server  # noqa: PLC0415
-    from hermes_computer_use.server.openai_server import app as openai_app  # noqa: PLC0415
+    from hermes_computer_use.server.openai_server import router as openai_router  # noqa: PLC0415
 
     mcp = create_mcp_server()
+    mcp_http = mcp.http_app()
+
+    # FastMCP's StreamableHTTP transport needs its lifespan initialised.
+    # Wire it into the parent app via a forwarding lifespan context manager.
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):  # noqa: ARG001
+        async with mcp_http.lifespan(app):
+            yield
 
     combined = FastAPI(
         title="Hermes Computer Use",
         description="Ubuntu desktop automation — MCP + OpenAI API",
         version="0.3.0",
+        lifespan=lifespan,
     )
 
-    # Mount OpenAI-compat routes at root
-    combined.mount("/", openai_app)
+    # Include OpenAI-compat routes (health, /v1/models, /v1/chat/completions)
+    combined.include_router(openai_router)
 
-    # Mount MCP at /mcp (FastMCP Streamable HTTP transport)
-    combined.mount("/mcp", mcp.http_app())
+    # Mount MCP ASGI app at "/" — FastMCP's http_app() puts its route at /mcp
+    combined.mount("/", mcp_http)
 
     return combined
 

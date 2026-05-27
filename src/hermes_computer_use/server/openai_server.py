@@ -12,12 +12,16 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+# Router — can be included into any FastAPI app (used by combined server)
+router = APIRouter()
+
+# Standalone app — used in --openai-only mode and tests
 app = FastAPI(
     title="Hermes Computer Use — OpenAI API",
     description="Ubuntu desktop automation via OpenAI-compatible chat completions",
@@ -80,13 +84,13 @@ class ChatCompletionResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@app.get("/health")
+@router.get("/health")
 async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok", "service": "hermes-computer-use"}
 
 
-@app.get("/v1/models")
+@router.get("/v1/models")
 async def list_models() -> dict[str, Any]:
     """List available models (OpenAI-compatible)."""
     return {
@@ -102,7 +106,7 @@ async def list_models() -> dict[str, Any]:
     }
 
 
-@app.post("/v1/chat/completions")
+@router.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
     """OpenAI-compatible chat completions endpoint.
 
@@ -179,3 +183,7 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
         ],
     )
     return JSONResponse(content=response.model_dump())
+
+
+# Include the router in the standalone app so it works in --openai-only mode and tests
+app.include_router(router)
