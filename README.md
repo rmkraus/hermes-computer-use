@@ -212,7 +212,42 @@ for chunk in stream:
 
 ## Hermes Agent Integration
 
-Add hermes-computer-use as a secondary model in your Hermes config:
+Use the **MCP mode** so the computer-use tools appear natively alongside Hermes's
+built-in tools — no secondary provider or manual model switching needed.
+
+### 1. Start the container in MCP mode
+
+```bash
+docker run -d --rm -p 9901:9901 --env-file .env hermes-computer-use:latest mcp
+```
+
+### 2. Add to `~/.hermes/config.yaml`
+
+```yaml
+mcp_servers:
+  computer_use:
+    url: http://localhost:9901/mcp
+    timeout: 120        # agent tasks can take a while
+    connect_timeout: 30
+```
+
+Restart Hermes. The computer-use tools are auto-discovered and registered as
+`mcp_computer_use_*` — available in every conversation without any extra commands.
+
+### 3. Use it
+
+Just ask naturally — Hermes picks the right tool:
+
+```
+Take a screenshot of the desktop
+Open a terminal and check disk usage
+Click on the Firefox icon and navigate to example.com
+```
+
+### OpenAI mode (alternative)
+
+If you prefer to route tasks to it as a separate model/provider rather than
+having the tools always available, use the OpenAI frontend instead:
 
 ```yaml
 # ~/.hermes/config.yaml
@@ -224,11 +259,7 @@ providers:
     model: hermes-computer-use
 ```
 
-Then in a Hermes session:
-
-```
-Use the computer_use provider to open a terminal and check disk usage
-```
+Then explicitly ask Hermes to use that provider for a task.
 
 ---
 
