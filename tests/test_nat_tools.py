@@ -9,9 +9,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers to load agent.py with mocked NAT + deepagents
 # ---------------------------------------------------------------------------
@@ -78,8 +75,8 @@ class TestAgentModuleLoads:
 class TestSyncBuilderIntegration:
     def test_get_llm_called_with_agent_key(self):
         """SyncBuilder.current().get_llm() must be called with 'agent'."""
-        import sys
         import importlib
+        import sys
 
         mock_sync_builder = MagicMock()
         mock_get_llm = mock_sync_builder.current.return_value.get_llm
@@ -102,8 +99,8 @@ class TestSyncBuilderIntegration:
 
     def test_get_llm_called_with_langchain_wrapper(self):
         """get_llm() must request wrapper_type=LLMFrameworkEnum.LANGCHAIN."""
-        import sys
         import importlib
+        import sys
 
         mock_framework = MagicMock()
         mock_framework.LANGCHAIN = "langchain_sentinel"

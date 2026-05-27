@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import logging
-import platform
-import subprocess
 import time
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 try:
@@ -19,7 +17,7 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
-class MouseButton(str, Enum):
+class MouseButton(StrEnum):
     """Mouse button identifiers."""
 
     LEFT = "left"
@@ -27,7 +25,7 @@ class MouseButton(str, Enum):
     RIGHT = "right"
 
 
-class KeyboardAction(str, Enum):
+class KeyboardAction(StrEnum):
     """Keyboard action types."""
 
     PRESS = "press"
@@ -296,7 +294,7 @@ class InputSimulator:
                 return {
                     "action": "locate_and_click",
                     "status": "not_found",
-                    "message": f"Target image not found on screen",
+                    "message": "Target image not found on screen",
                 }
 
             center = pag.center(location)
@@ -333,7 +331,7 @@ class InputSimulator:
             "status": "success",
         }
 
-    def reset_failSafe(self, enable: bool = True) -> dict[str, Any]:
+    def reset_failsafe(self, enable: bool = True) -> dict[str, Any]:
         """Toggle PyAutoGUI failsafe (move mouse to corner to abort).
 
         Args:

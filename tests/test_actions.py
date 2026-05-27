@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from hermes_computer_use.tools.actions import DesktopActionExecutor, ActionResult
+from hermes_computer_use.tools.actions import ActionResult, DesktopActionExecutor
 
 
 class TestDesktopActionExecutor:

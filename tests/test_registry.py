@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-import importlib.util
-from unittest.mock import patch
-
-import pytest
-
 from hermes_computer_use.tools.registry import (
+    TOOLS,
     ToolCapability,
     get_all_tool_schemas,
     get_tool_schema,
     list_available_tools,
     list_tools,
     register_tool,
-    TOOLS,
 )
 
 

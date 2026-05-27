@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from .input import InputSimulator, KeyboardAction, MouseButton
+from .input import InputSimulator, MouseButton
 from .screenshot import capture_screenshot
 
 logger = logging.getLogger(__name__)

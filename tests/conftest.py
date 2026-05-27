@@ -62,7 +62,7 @@ def small_screenshot() -> bytes:
 @pytest.fixture
 def mock_input_simulator():
     """Create a mocked InputSimulator for testing."""
-    with patch("hermes_computer_use.tools.input.InputSimulator") as MockSimulator:
+    with patch("hermes_computer_use.tools.input.InputSimulator") as mock_simulator:
         mock = MagicMock()
         mock.click.return_value = {"action": "click", "status": "success"}
         mock.move.return_value = {"action": "move", "status": "success"}
@@ -74,14 +74,14 @@ def mock_input_simulator():
         mock.pag.size.return_value = (1920, 1080)
         mock.pag.FAILSAFE = True
         mock.pag.PAUSE = 0.1
-        MockSimulator.return_value = mock
+        mock_simulator.return_value = mock
         yield mock
 
 
 @pytest.fixture
 def mock_safety_checker():
     """Create a mocked SafetyChecker for testing."""
-    with patch("hermes_computer_use.safety.checker.SafetyChecker") as MockChecker:
+    with patch("hermes_computer_use.safety.checker.SafetyChecker") as mock_checker:
         mock = MagicMock()
         mock.check_all.return_value = MagicMock(safe=True, reason=None)
         mock.check_text.return_value = MagicMock(safe=True, reason=None)
@@ -89,7 +89,7 @@ def mock_safety_checker():
         mock.check_coordinate.return_value = MagicMock(safe=True, reason=None)
         mock.check_rate_limit.return_value = MagicMock(safe=True, reason=None)
         mock.record_action.return_value = None
-        MockChecker.return_value = mock
+        mock_checker.return_value = mock
         yield mock
 
 

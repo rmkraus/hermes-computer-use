@@ -58,8 +58,8 @@ class TestToolsImport:
     def test_tool_funcs_are_type_hint_introspectable(self, tools):
         """Tool functions must not be functools.partial — LangGraph ToolNode calls
         get_type_hints() on them and partial objects are not introspectable modules."""
-        import typing
         import functools
+        import typing
         for name, tool in tools.items():
             func = tool.func
             assert not isinstance(func, functools.partial), (
@@ -272,8 +272,8 @@ class TestKeyPress:
 
 class TestListWindows:
     def test_no_windows(self, tools):
-        with patch("hermes_computer_use.agent.tools.WindowManager") as MockWM:
-            MockWM.return_value.list_windows.return_value = []
+        with patch("hermes_computer_use.agent.tools.WindowManager") as mock_wm:
+            mock_wm.return_value.list_windows.return_value = []
             result = tools["list_windows"].invoke({})
         assert "No windows" in result
 
@@ -283,8 +283,8 @@ class TestListWindows:
             window_id="12345", title="Firefox", class_name="Firefox",
             pid=1000, x=0, y=0, width=1200, height=800,
         )
-        with patch("hermes_computer_use.agent.tools.WindowManager") as MockWM:
-            MockWM.return_value.list_windows.return_value = [win]
+        with patch("hermes_computer_use.agent.tools.WindowManager") as mock_wm:
+            mock_wm.return_value.list_windows.return_value = [win]
             result = tools["list_windows"].invoke({})
         assert "12345" in result
         assert "Firefox" in result
@@ -298,14 +298,14 @@ class TestListWindows:
 
 class TestFocusWindow:
     def test_success(self, tools):
-        with patch("hermes_computer_use.agent.tools.WindowManager") as MockWM:
-            MockWM.return_value.focus_window.return_value = {"status": "success"}
+        with patch("hermes_computer_use.agent.tools.WindowManager") as mock_wm:
+            mock_wm.return_value.focus_window.return_value = {"status": "success"}
             result = tools["focus_window"].invoke({"window_id": "99"})
         assert "99" in result
 
     def test_failure(self, tools):
-        with patch("hermes_computer_use.agent.tools.WindowManager") as MockWM:
-            MockWM.return_value.focus_window.return_value = {
+        with patch("hermes_computer_use.agent.tools.WindowManager") as mock_wm:
+            mock_wm.return_value.focus_window.return_value = {
                 "status": "error", "message": "Window not found"
             }
             result = tools["focus_window"].invoke({"window_id": "0"})

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from hermes_computer_use.tools.input import InputSimulator, KeyboardAction, MouseButton
@@ -131,12 +129,12 @@ class TestInputSimulator:
 
     def test_failsafe_is_enabled(self):
         """Test that failsafe is enabled by default."""
-        sim = InputSimulator()
+        InputSimulator()
         assert self.mock_pag.FAILSAFE is True
 
     def test_pause_is_set(self):
         """Test that pause is configured."""
-        sim = InputSimulator(pause=0.5)
+        InputSimulator(pause=0.5)
         assert self.mock_pag.PAUSE == 0.5
 
     def test_key_combo_press_only(self):

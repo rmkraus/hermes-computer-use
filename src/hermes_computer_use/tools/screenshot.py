@@ -117,13 +117,13 @@ def capture_screenshot(
 
 def _capture_scrot(region: tuple[int, int, int, int] | None) -> Screenshot | None:
     """Capture using scrot (Simple Camera Robot)."""
-    cmd = ["scrot", "/tmp/hermes_screenshot_{}.png".format(os.getpid()), "--silent"]
+    cmd = ["scrot", f"/tmp/hermes_screenshot_{os.getpid()}.png", "--silent"]
 
     if region:
         x, y, w, h = region
         cmd = [
             "scrot",
-            "/tmp/hermes_screenshot_{}.png".format(os.getpid()),
+            f"/tmp/hermes_screenshot_{os.getpid()}.png",
             "--silent",
             "-a",
             f"{x},{y},{w},{h}",
@@ -131,7 +131,7 @@ def _capture_scrot(region: tuple[int, int, int, int] | None) -> Screenshot | Non
 
     try:
         subprocess.run(cmd, capture_output=True, timeout=10, check=True)
-        path = "/tmp/hermes_screenshot_{}.png".format(os.getpid())
+        path = f"/tmp/hermes_screenshot_{os.getpid()}.png"
 
         with open(path, "rb") as f:
             data = f.read()

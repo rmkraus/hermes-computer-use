@@ -8,7 +8,12 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-from hermes_computer_use.tools.screenshot import Screenshot, capture_screenshot, get_display_info, zoom_screenshot
+from hermes_computer_use.tools.screenshot import (
+    Screenshot,
+    capture_screenshot,
+    get_display_info,
+    zoom_screenshot,
+)
 
 
 class TestScreenshot:

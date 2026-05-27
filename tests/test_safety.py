@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from hermes_computer_use.safety.checker import SafetyCheckResult, SafetyChecker
+from hermes_computer_use.safety.checker import SafetyChecker, SafetyCheckResult
 
 
 class TestSafetyCheckerText:

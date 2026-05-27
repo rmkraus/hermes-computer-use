@@ -1,5 +1,5 @@
 """Safety package for Hermes Computer Use."""
 
-from .checker import SafetyCheckResult, SafetyChecker
+from .checker import SafetyChecker, SafetyCheckResult
 
 __all__ = ["SafetyCheckResult", "SafetyChecker", "checker"]
