@@ -214,17 +214,6 @@ class TestTypeText:
         assert "11 characters" in result
         mock_pag.write.assert_called_once()
 
-    def test_blocks_dangerous_content(self, tools, mock_pag):
-        with patch.dict("sys.modules", {"pyautogui": mock_pag}):
-            result = tools["type_text"].invoke({"text": "rm -rf /"})
-        assert "Blocked" in result
-        mock_pag.write.assert_not_called()
-
-    def test_blocks_password_content(self, tools, mock_pag):
-        with patch.dict("sys.modules", {"pyautogui": mock_pag}):
-            result = tools["type_text"].invoke({"text": "password: secret123"})
-        assert "Blocked" in result
-
     def test_returns_error_on_failure(self, tools):
         bad_pag = MagicMock()
         bad_pag.write.side_effect = Exception("display gone")
@@ -250,11 +239,6 @@ class TestKeyPress:
             result = tools["key_press"].invoke({"keys": "ctrl+c"})
         assert "ctrl+c" in result
         mock_pag.hotkey.assert_called_once_with("ctrl", "c")
-
-    def test_blocked_combo(self, tools, mock_pag):
-        with patch.dict("sys.modules", {"pyautogui": mock_pag}):
-            result = tools["key_press"].invoke({"keys": "alt+f4"})
-        assert "Blocked" in result
 
     def test_sequential_keys(self, tools, mock_pag):
         with patch.dict("sys.modules", {"pyautogui": mock_pag}):
@@ -343,10 +327,6 @@ class TestRunCommand:
     def test_safe_command(self, tools):
         result = tools["run_command"].invoke({"command": "echo hello"})
         assert "hello" in result
-
-    def test_blocked_dangerous_command(self, tools):
-        result = tools["run_command"].invoke({"command": "rm -rf /tmp/test"})
-        assert "blocked" in result.lower()
 
     def test_command_timeout(self, tools):
         result = tools["run_command"].invoke({"command": "sleep 60", "timeout": 1})

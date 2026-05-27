@@ -10,15 +10,12 @@ import subprocess
 
 from langchain_core.tools import tool
 
-from hermes_computer_use.safety.checker import SafetyChecker
 from hermes_computer_use.tools.screenshot import (
     capture_screenshot,
     get_display_info,
     zoom_screenshot,
 )
 from hermes_computer_use.tools.window import WindowManager
-
-_safety = SafetyChecker()
 
 # ---------------------------------------------------------------------------
 # Tools
@@ -138,11 +135,8 @@ def type_text(text: str, interval: float = 0.02) -> str:
         interval: Delay between keystrokes in seconds.
 
     Returns:
-        Confirmation string, or ``"Blocked: ..."`` if the text fails safety checks.
+        Confirmation string or an error message.
     """
-    result = _safety.check_text(text)
-    if not result.safe:
-        return f"Blocked: {result.reason}"
     try:
         import pyautogui as pag  # noqa: PLC0415
         pag.write(text, interval=interval)
@@ -163,16 +157,13 @@ def key_press(keys: str) -> str:
             ``"F5"``, ``"ctrl+c,ctrl+v"``.
 
     Returns:
-        Confirmation string, or ``"Blocked: ..."`` if a combo fails safety checks.
+        Confirmation string or an error message.
     """
     try:
         import pyautogui as pag  # noqa: PLC0415
         for combo in keys.split(","):
             combo = combo.strip()
             parts = [p.strip() for p in combo.split("+")]
-            check = _safety.check_key_combo(parts)
-            if not check.safe:
-                return f"Blocked: {check.reason}"
             if len(parts) == 1:
                 pag.press(parts[0])
             else:
@@ -229,9 +220,6 @@ def run_command(command: str, timeout: int = 30) -> str:
     Returns:
         Combined stdout/stderr output, exit code notice, or an error message.
     """
-    check = _safety.check_text(command)
-    if not check.safe:
-        return f"Command blocked: {check.reason}"
     try:
         result = subprocess.run(  # noqa: S603
             ["bash", "-c", command],

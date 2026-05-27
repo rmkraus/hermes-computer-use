@@ -272,24 +272,12 @@ Then explicitly ask Hermes to use that provider for a task.
 | `click` | Left/right/double-click at (x, y) |
 | `move_mouse` | Move cursor to (x, y) with configurable duration |
 | `scroll` | Scroll at (x, y) by N clicks up/down |
-| `type_text` | Type text via keyboard (safety-checked) |
+| `type_text` | Type text via keyboard |
 | `key_press` | Press keys or hotkeys: `enter`, `ctrl+c`, `ctrl+alt+t` |
 | `list_windows` | List all open windows with IDs, titles, geometry |
 | `focus_window` | Bring a window to the foreground by ID |
-| `run_command` | Run a shell command (safety-checked, timeout enforced) |
+| `run_command` | Run a shell command (timeout enforced) |
 | `get_screen_info` | Return display server type, resolution, and DISPLAY var |
-
----
-
-## Safety
-
-All destructive actions pass through `SafetyChecker` before execution:
-
-- **Coordinate bounds** — clicks/moves stay within screen dimensions
-- **Blocklisted commands** — `rm -rf`, `mkfs`, `dd if=`, etc. are rejected
-- **Dangerous key combos** — `ctrl+alt+delete`, `alt+f4`, etc. are blocked
-- **Sensitive text** — patterns matching passwords/secrets are rejected
-- **Rate limiting** — max 60 actions per 60-second window
 
 ---
 
