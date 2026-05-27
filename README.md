@@ -1,5 +1,10 @@
 # hermes-computer-use
 
+[![CI](https://github.com/rmkraus/hermes-computer-use/actions/workflows/ci.yml/badge.svg)](https://github.com/rmkraus/hermes-computer-use/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rmkraus/hermes-computer-use/branch/main/graph/badge.svg)](https://codecov.io/gh/rmkraus/hermes-computer-use)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Ubuntu desktop automation agent — a [DeepAgents](https://github.com/langchain-ai/deepagents)
 ReAct loop served by [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit) (NAT)
 with a streaming OpenAI-compatible `/v1/chat/completions` endpoint.

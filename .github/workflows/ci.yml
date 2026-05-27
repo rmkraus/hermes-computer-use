@@ -30,10 +30,28 @@ jobs:
           uv venv .venv --python ${{ matrix.python-version }}
           uv pip install --python .venv/bin/python -e ".[dev]"
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           unset DISPLAY
-          .venv/bin/python -m pytest tests/ -v --tb=short -m "not integration"
+          .venv/bin/python -m pytest tests/ -v --tb=short -m "not integration" \
+            --cov=hermes_computer_use \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=junit.xml
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: matrix.python-version == '3.11' && !cancelled()
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Lint (ruff)
         run: .venv/bin/ruff check src/ tests/
