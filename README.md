@@ -1,199 +1,227 @@
-# Hermes Computer Use
+# hermes-computer-use
 
-Ubuntu desktop automation agent — powered by [LangChain DeepAgents](https://github.com/langchain-ai/deepagents), served as an **MCP server** and an **OpenAI-compatible API** on a single port.
+Ubuntu desktop automation agent — a [DeepAgents](https://github.com/langchain-ai/deepagents)
+ReAct loop served by [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit) (NAT)
+with a streaming OpenAI-compatible `/v1/chat/completions` endpoint.
+
+Any OpenAI client (Hermes Agent, Cursor, Claude Desktop, `curl`) can drive the agent by sending
+a plain-English goal. The agent takes screenshots, clicks, types, manages windows, and runs
+shell commands on a real Ubuntu desktop until the goal is achieved.
+
+---
+
+## Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│  Any MCP Client                  Any OpenAI client             │
-│  (Hermes, Claude Desktop,        (curl, LangChain, Hermes,     │
-│   Cursor, VS Code, ...)           Python openai SDK, ...)      │
-└────────────┬───────────────────────────┬───────────────────────┘
-             │  MCP  /mcp                │  HTTP  /v1/chat/completions
-             ▼                           ▼
-┌────────────────────────────────────────────────────────────────┐
-│               hermes-computer-use server (port 8000)           │
-│  ┌──────────────────┐   ┌────────────────────────────────────┐ │
-│  │  FastMCP layer   │   │  FastAPI OpenAI-compat layer       │ │
-│  │  run_computer_use│   │  POST /v1/chat/completions         │ │
-│  └────────┬─────────┘   └───────────────┬────────────────────┘ │
-│           └────────────────┬────────────┘                      │
-│                            ▼                                    │
-│           ┌─────────────────────────────┐                      │
-│           │  DeepAgent (LangGraph graph) │                      │
-│           │  create_deep_agent(model,    │                      │
-│           │    tools=[...])              │                      │
-│           └─────────────┬───────────────┘                      │
-│                         ▼                                       │
-│           ┌─────────────────────────────┐                      │
-│           │  Computer-Use Tools          │                      │
-│           │  take_screenshot  click      │                      │
-│           │  type_text        key_press  │                      │
-│           │  scroll           move_mouse │                      │
-│           │  run_command      zoom_region│                      │
-│           │  list_windows  focus_window  │                      │
-│           │  get_screen_info             │                      │
-│           └─────────────────────────────┘                      │
-│                         ▼                                       │
-│           ┌─────────────────────────────┐                      │
-│           │  Xvfb virtual display        │                      │
-│           │  Ubuntu 24.04 desktop        │                      │
-│           └─────────────────────────────┘                      │
-└────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     NeMo Agent Toolkit                          │
+│  nat serve --config_file workflow.yaml                          │
+│                                                                 │
+│  POST /v1/chat/completions  ──►  langgraph_wrapper              │
+│  (streaming SSE supported)        │                             │
+│                                   ▼                             │
+│                           DeepAgents ReAct loop                 │
+│                           (create_deep_agent)                   │
+│                                   │                             │
+│                         ┌─────────┴──────────┐                 │
+│                         ▼                    ▼                  │
+│                   LLM (NIM / any         11 computer-use        │
+│                   OpenAI-compat)         tools (below)          │
+└─────────────────────────────────────────────────────────────────┘
+
+Tools: take_screenshot · zoom_region · click · move_mouse · scroll
+       type_text · key_press · list_windows · focus_window
+       run_command · get_screen_info
 ```
 
-## Quick Start
+NAT owns all the HTTP serving — streaming, session state, telemetry, eval.
+`agent/agent.py` is the thin entrypoint: it calls `SyncBuilder.current().get_llm()`
+to get the NAT-configured LLM, then hands it to `create_deep_agent()` with the tool list.
+
+---
+
+## Quickstart
 
 ### Docker (recommended)
 
 ```bash
-# Copy and fill in your LLM API key
 cp .env.example .env
-# OPENAI_API_KEY=sk-...         (for gpt-4o)
-# NVIDIA_API_KEY=nvapi-...      (for NVIDIA NIM models)
-# COMPUTER_USE_MODEL=openai:gpt-4o
-
-docker compose up --build
+# Set NVIDIA_API_KEY in .env
+docker compose up
 ```
 
-The server starts on **port 8002** (maps to 8000 inside the container).
+The server starts on **`http://localhost:8002`** (host port 8002 → container 8000).
 
 ### Bare metal
 
 ```bash
-# Install system deps
-sudo apt-get install -y xvfb scrot xdotool xterm
-
-# Install Python package
+# Install with NAT serving layer
 pip install -e ".[all]"
 
+# Set your API key
+export NVIDIA_API_KEY=nvapi-...
+
 # Start the server
-COMPUTER_USE_MODEL=openai:gpt-4o \
-OPENAI_API_KEY=sk-... \
-python -m hermes_computer_use.server --port 8000
+nat serve --config_file workflow.yaml
 ```
 
-## MCP Integration
+---
 
-Add to your MCP client config (e.g. Claude Desktop `config.json`):
+## Configuration
 
-```json
-{
-  "mcpServers": {
-    "computer-use": {
-      "url": "http://localhost:8002/mcp"
-    }
-  }
-}
-```
-
-Or for Hermes Agent (`~/.hermes/config.yaml`):
+Model and endpoint are set via `workflow.yaml` (env vars override at runtime):
 
 ```yaml
-mcp_servers:
-  - name: computer-use
-    url: http://localhost:8002/mcp
+llms:
+  agent:
+    _type: nim
+    model: ${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct}
+    api_key: ${NVIDIA_API_KEY}
+    base_url: ${NIM_BASE_URL:-null}   # override for local vLLM / custom NIM
 ```
 
-The server exposes **one MCP tool**:
+Override the model at launch without editing the YAML:
 
-| Tool | Description |
-|------|-------------|
-| `run_computer_use` | Give the agent a plain-English goal. It screenshots, clicks, types, and runs commands to complete it. |
+```bash
+# Use a different NIM model
+COMPUTER_USE_MODEL=meta/llama-3.3-70b-instruct nat serve --config_file workflow.yaml
 
-## OpenAI API Integration
+# Point at a local vLLM endpoint
+NIM_BASE_URL=http://localhost:8000/v1 nat serve --config_file workflow.yaml
 
-Point any OpenAI client at the server:
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:8002/v1",
-    api_key="not-needed",
-)
-
-response = client.chat.completions.create(
-    model="hermes-computer-use",
-    messages=[{"role": "user", "content": "Open Firefox and go to example.com"}],
-)
-print(response.choices[0].message.content)
+# Or via NAT --override flag
+nat serve --config_file workflow.yaml \
+  --override llms.agent.model meta/llama-3.3-70b-instruct
 ```
 
-Or with curl:
+---
+
+## API Usage
+
+NAT exposes a fully streaming OpenAI-compatible endpoint.
+
+### Non-streaming
 
 ```bash
 curl http://localhost:8002/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"hermes-computer-use","messages":[{"role":"user","content":"Take a screenshot"}]}'
+  -d '{
+    "model": "hermes-computer-use",
+    "messages": [{"role": "user", "content": "Open a terminal and print the current date"}]
+  }'
 ```
 
-## Available Models
+### Streaming (SSE)
 
-The agent works with any OpenAI-compatible LLM. Set `COMPUTER_USE_MODEL` to:
+```bash
+curl http://localhost:8002/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "hermes-computer-use",
+    "stream": true,
+    "messages": [{"role": "user", "content": "Take a screenshot and describe what you see"}]
+  }'
+```
 
-| Model string | Description |
-|---|---|
-| `openai:gpt-4o` | GPT-4o (default) |
-| `openai:gpt-4o-mini` | Faster / cheaper |
-| `nvidia:meta/llama-3.1-70b-instruct` | NVIDIA NIM |
-| `nvidia:nvidia/llama-3.2-90b-vision-instruct` | NVIDIA NIM with vision |
-| Any `langchain` init_chat_model string | See [LangChain docs](https://python.langchain.com/docs/how_to/chat_models_universal_init/) |
+### Python (OpenAI client)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8002/v1", api_key="unused")
+
+stream = client.chat.completions.create(
+    model="hermes-computer-use",
+    messages=[{"role": "user", "content": "Open Firefox and navigate to example.com"}],
+    stream=True,
+)
+for chunk in stream:
+    print(chunk.choices[0].delta.content or "", end="", flush=True)
+```
+
+---
+
+## Hermes Agent Integration
+
+Add hermes-computer-use as a secondary model in your Hermes config:
+
+```yaml
+# ~/.hermes/config.yaml
+providers:
+  computer_use:
+    type: openai
+    base_url: http://localhost:8002/v1
+    api_key: unused
+    model: hermes-computer-use
+```
+
+Then in a Hermes session:
+
+```
+Use the computer_use provider to open a terminal and check disk usage
+```
+
+---
 
 ## Tool Catalog
 
-| Tool | What it does |
-|------|-------------|
-| `take_screenshot` | Full-screen screenshot → base64 PNG |
-| `zoom_region` | Crop + upscale a region for reading small text |
-| `click` | Mouse click (left/right/middle, single/double) |
-| `move_mouse` | Move cursor without clicking |
-| `scroll` | Scroll wheel at position |
-| `type_text` | Type a string (blocked on dangerous patterns) |
-| `key_press` | Single key or hotkey combo (e.g. `ctrl+c`) |
-| `list_windows` | List all visible windows |
-| `focus_window` | Bring window to foreground |
-| `run_command` | Run shell command via `bash -c` |
-| `get_screen_info` | Screen resolution and display server type |
+| Tool | Description |
+|---|---|
+| `take_screenshot` | Capture full desktop; optional `max_dimension` resize |
+| `zoom_region` | Crop and magnify a screen region for reading small text |
+| `click` | Left/right/double-click at (x, y) |
+| `move_mouse` | Move cursor to (x, y) with configurable duration |
+| `scroll` | Scroll at (x, y) by N clicks up/down |
+| `type_text` | Type text via keyboard (safety-checked) |
+| `key_press` | Press keys or hotkeys: `enter`, `ctrl+c`, `ctrl+alt+t` |
+| `list_windows` | List all open windows with IDs, titles, geometry |
+| `focus_window` | Bring a window to the foreground by ID |
+| `run_command` | Run a shell command (safety-checked, timeout enforced) |
+| `get_screen_info` | Return display server type, resolution, and DISPLAY var |
+
+---
 
 ## Safety
 
-The `SafetyChecker` runs before every action:
+All destructive actions pass through `SafetyChecker` before execution:
 
-- **Text/command blocking** — rejects `rm -rf`, `DROP TABLE`, fork bombs, and credential patterns
-- **Hotkey blocking** — rejects `Alt+F4`, `Ctrl+Alt+Delete`, and other system-critical combos
-- **Coordinate validation** — warns on screen-edge clicks
-- **Rate limiting** — caps at 120 actions/minute
+- **Coordinate bounds** — clicks/moves stay within screen dimensions
+- **Blocklisted commands** — `rm -rf`, `mkfs`, `dd if=`, etc. are rejected
+- **Dangerous key combos** — `ctrl+alt+delete`, `alt+f4`, etc. are blocked
+- **Sensitive text** — patterns matching passwords/secrets are rejected
+- **Rate limiting** — max 60 actions per 60-second window
+
+---
 
 ## Development
 
 ```bash
 # Install dev dependencies
-pip install -e ".[dev]"
+pip install -e ".[all,dev]"    # Note: nvidia-nat requires separate install
+uv pip install nvidia-nat[langchain]
 
-# Run tests (no display required)
-pytest tests/ -v
+# Run tests (no display or LLM credentials needed)
+pytest tests/ -q
 
 # Lint
 ruff check src/ tests/
-
-# Type check
-mypy src/
 ```
 
-### Test Markers
+Tests mock NAT, deepagents, pyautogui, and all display calls — the full suite
+runs in CI without any GPU, display server, or API keys.
 
-```bash
-pytest -m "not integration"   # skip tests that need a real display
-pytest -m agent               # only agent/server tests
-```
+---
 
-## Environment Variables
+## Requirements
 
-| Variable | Default | Description |
-|---|---|---|
-| `COMPUTER_USE_MODEL` | `openai:gpt-4o` | LLM model string |
-| `OPENAI_API_KEY` | — | OpenAI API key |
-| `NVIDIA_API_KEY` | — | NVIDIA NIM API key |
-| `COMPUTER_USE_PORT` | `8000` | Server port inside container |
-| `COMPUTER_USE_HOST` | `0.0.0.0` | Bind address |
-| `DISPLAY` | `:99` | X11 display (set automatically in Docker) |
+- **OS**: Ubuntu 22.04+ (Wayland not supported; X11 required)
+- **Python**: 3.11+
+- **Display**: X11 display (real or Xvfb)
+- **LLM**: Any NIM-compatible vision model (`NVIDIA_API_KEY`) or local vLLM (`NIM_BASE_URL`)
+- **System tools**: `xdotool` for window management
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

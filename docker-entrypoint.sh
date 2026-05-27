@@ -32,7 +32,5 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Start the combined MCP + OpenAI API server
-exec python -m hermes_computer_use.server \
-    --host "${COMPUTER_USE_HOST:-0.0.0.0}" \
-    --port "${COMPUTER_USE_PORT:-8000}"
+# Start the NAT server with the langgraph_wrapper workflow
+exec nat serve --config_file /app/workflow.yaml

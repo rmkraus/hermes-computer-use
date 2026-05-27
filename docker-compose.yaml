@@ -6,9 +6,9 @@ services:
     ports:
       - "8002:8000"   # host 8002 → container 8000 (host 8000 used by vLLM)
     environment:
-      - COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-openai:gpt-4o}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct}
       - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - NIM_BASE_URL=${NIM_BASE_URL:-}
       - DISPLAY_NUM=99
     env_file:
       - path: .env

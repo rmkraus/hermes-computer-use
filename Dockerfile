@@ -29,6 +29,7 @@ ENV PATH="/root/.local/bin:$PATH"
 WORKDIR /app
 COPY pyproject.toml ./
 COPY src/ ./src/
+COPY workflow.yaml ./
 
 # Install into a venv (avoids --break-system-packages on Python 3.12)
 ENV VIRTUAL_ENV=/app/.venv
