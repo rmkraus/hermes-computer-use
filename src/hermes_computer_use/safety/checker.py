@@ -9,17 +9,10 @@ logger = logging.getLogger(__name__)
 class SafetyCheckResult:
     """Result of a safety validation check."""
 
-    def __init__(
-        self,
-        safe: bool,
-        action: str,
-        reason: str | None = None,
-        blocked: bool = False,
-    ) -> None:
+    def __init__(self, safe: bool, action: str, reason: str | None = None) -> None:
         self.safe = safe
         self.action = action
         self.reason = reason
-        self.blocked = blocked
 
     def __repr__(self) -> str:
         return f"SafetyCheckResult(safe={self.safe}, action={self.action!r}, reason={self.reason!r})"
@@ -28,10 +21,9 @@ class SafetyCheckResult:
 class SafetyChecker:
     """Validates actions for safety before execution.
 
-    Three layers of checks:
+    Two layers of checks:
     1. Text content — dangerous shell commands, credentials
     2. Key combinations — system-critical shortcuts
-    3. Screen coordinates — out-of-bounds clicks
     """
 
     # Dangerous shell command substrings
@@ -72,7 +64,6 @@ class SafetyChecker:
                 safe=False,
                 action="type",
                 reason=f"Text exceeds max length {max_length}",
-                blocked=True,
             )
 
         text_lower = text.lower().strip()
@@ -83,7 +74,6 @@ class SafetyChecker:
                     safe=False,
                     action="type",
                     reason=f"Dangerous pattern detected: {pattern}",
-                    blocked=True,
                 )
 
         credential_indicators = [
@@ -102,7 +92,6 @@ class SafetyChecker:
                     safe=False,
                     action="type",
                     reason="Possible credential detected",
-                    blocked=True,
                 )
 
         return SafetyCheckResult(safe=True, action="type")
@@ -115,19 +104,5 @@ class SafetyChecker:
                     safe=False,
                     action="key_combo",
                     reason=f"System-critical key combination blocked: {'+'.join(keys)}",
-                    blocked=True,
                 )
         return SafetyCheckResult(safe=True, action="key_combo")
-
-    def check_coordinate(
-        self, x: int, y: int, screen_width: int, screen_height: int
-    ) -> SafetyCheckResult:
-        """Check that screen coordinates are within bounds."""
-        if x < 0 or x >= screen_width or y < 0 or y >= screen_height:
-            return SafetyCheckResult(
-                safe=False,
-                action="click",
-                reason=f"Coordinate ({x}, {y}) out of bounds ({screen_width}x{screen_height})",
-                blocked=True,
-            )
-        return SafetyCheckResult(safe=True, action="click")
