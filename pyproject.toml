@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-computer-use"
-version = "0.4.0"
-description = "Ubuntu desktop automation agent — DeepAgent served via NeMo Agent Toolkit"
+version = "0.5.0"
+description = "Ubuntu desktop automation agent served as an OpenAI-compatible API"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
@@ -30,30 +30,12 @@ dependencies = [
     "python-xlib>=0.33",
     # Utilities
     "requests>=2.31",
-    "nvidia-nat-mcp>=1.7.0",
+    # NAT serving
     "nvidia-nat-langchain>=1.7.0",
 ]
 
 [project.optional-dependencies]
-# Full agent: DeepAgent harness + LangChain tools
-agent = [
-    "deepagents>=0.6.0",
-    "langchain>=1.3.0",
-    "langchain-core>=1.4.0",
-    "langchain-openai>=0.3.0",
-    "langgraph>=0.4.0",
-]
-# NAT serving: NeMo Agent Toolkit + LangChain integration
-nat = [
-    "hermes-computer-use[agent]",
-    "nvidia-nat[langchain]>=1.7.0",
-]
-# Everything
-all = [
-    "hermes-computer-use[nat]",
-]
-# Development tools (includes LangChain so test_agent_tools.py runs in CI
-# without needing the non-PyPI nvidia-nat / deepagents packages)
+# Development tools
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
@@ -68,9 +50,6 @@ dev = [
     "langgraph>=0.2.0",
     "pydantic>=2.0",
 ]
-
-[project.entry-points."nat.plugins"]
-hermes_computer_use = "hermes_computer_use.agent.nat_tools"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -88,8 +67,7 @@ markers = [
     "integration: requires X11 display server (skip in CI)",
     "screenshot: involves actual screenshot capture",
     "input: involves actual input simulation",
-    "agent: requires deepagents + LLM credentials",
-    "nat: requires nvidia-nat installed",
+    "agent: requires nvidia-nat-langchain + LLM credentials",
 ]
 
 [tool.ruff]

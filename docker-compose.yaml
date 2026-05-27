@@ -1,39 +1,13 @@
 services:
-  # OpenAI-compatible frontend — POST /v1/chat/completions
-  # docker compose up computer-use-openai
-  computer-use-openai:
+  computer-use:
     build: .
     image: hermes-computer-use:latest
-    container_name: hermes-computer-use-openai
-    command: ["openai"]
+    container_name: hermes-computer-use
     ports:
-      - "8002:8000"   # host 8002 → container 8000 (host 8000 used by vLLM)
+      - "8002:8000"   # host 8002 → container 8000 (host 8000 reserved for vLLM)
     environment:
       - COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct}
       - COMPUTER_USE_PORT=8000
-      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
-      - NIM_BASE_URL=${NIM_BASE_URL:-}
-      - DISPLAY_NUM=99
-    env_file:
-      - path: .env
-        required: false
-    restart: unless-stopped
-    shm_size: "256m"
-    security_opt:
-      - seccomp:unconfined   # required for Xvfb inside container
-
-  # MCP frontend — streamable-http at /mcp
-  # docker compose up computer-use-mcp
-  computer-use-mcp:
-    build: .
-    image: hermes-computer-use:latest
-    container_name: hermes-computer-use-mcp
-    command: ["mcp"]
-    ports:
-      - "9901:9901"
-    environment:
-      - COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct}
-      - COMPUTER_USE_PORT=9901
       - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
       - NIM_BASE_URL=${NIM_BASE_URL:-}
       - DISPLAY_NUM=99

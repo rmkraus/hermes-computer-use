@@ -1,0 +1,26 @@
+[Unit]
+Description=Hermes Computer Use — OpenAI-compatible desktop automation agent
+Documentation=https://github.com/rmkraus/hermes-computer-use
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/hermes-computer-use.env
+ExecStartPre=-/usr/bin/docker rm -f hermes-computer-use
+ExecStart=/usr/bin/docker run \
+    --name hermes-computer-use \
+    --rm --init \
+    --shm-size=256m \
+    --security-opt seccomp:unconfined \
+    -p ${HOST_PORT:-8002}:8000 \
+    -e NVIDIA_API_KEY=${NVIDIA_API_KEY} \
+    -e COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct} \
+    -e NIM_BASE_URL=${NIM_BASE_URL:-} \
+    ${COMPUTER_USE_IMAGE:-ghcr.io/rmkraus/hermes-computer-use:latest}
+ExecStop=/usr/bin/docker stop hermes-computer-use
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
