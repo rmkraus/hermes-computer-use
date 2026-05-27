@@ -73,13 +73,35 @@ docker run --rm -p 9901:9901 --env-file .env hermes-computer-use:latest mcp
 docker compose up computer-use-mcp
 ```
 
-**Override the LLM at runtime** (works for both modes):
-```bash
-docker run --rm -p 8002:8000 --env-file .env hermes-computer-use:latest openai \
-    --override llms.agent.model meta/llama-4-scout-17b-16e-instruct
+**Override the LLM at runtime** — model, base URL, and API key can all be set via
+environment variables or `--override` flags. Both approaches work with either mode:
 
+```bash
+# Via environment variables (simplest)
+docker run --rm -p 8002:8000 \
+    -e NVIDIA_API_KEY=nvapi-... \
+    -e COMPUTER_USE_MODEL=meta/llama-4-scout-17b-16e-instruct \
+    -e NIM_BASE_URL=https://integrate.api.nvidia.com/v1 \
+    hermes-computer-use:latest
+
+# Point at a local vLLM instance instead of NVIDIA NIM
+docker run --rm -p 8002:8000 \
+    -e NIM_BASE_URL=http://host.docker.internal:8000/v1 \
+    -e NVIDIA_API_KEY=unused \
+    -e COMPUTER_USE_MODEL=my-local-model \
+    hermes-computer-use:latest
+
+# Via NAT --override flags (passed through after the mode selector)
+docker run --rm -p 8002:8000 --env-file .env hermes-computer-use:latest openai \
+    --override llms.agent.model meta/llama-4-scout-17b-16e-instruct \
+    --override llms.agent.base_url https://integrate.api.nvidia.com/v1 \
+    --override llms.agent.api_key nvapi-...
+
+# MCP mode with overrides
 docker run --rm -p 9901:9901 --env-file .env hermes-computer-use:latest mcp \
-    --override llms.agent.model gpt-4o
+    --override llms.agent.model gpt-4o \
+    --override llms.agent.base_url https://api.openai.com/v1 \
+    --override llms.agent.api_key sk-...
 ```
 
 Any extra arguments after `openai` or `mcp` are passed through directly to `nat`.
@@ -101,7 +123,8 @@ nat serve --config_file workflow.yaml
 
 ## Configuration
 
-Model and endpoint are set via `workflow.yaml` (env vars override at runtime):
+Model, endpoint, and API key are set via environment variables or NAT `--override` flags.
+The `workflow.yaml` reads them at startup:
 
 ```yaml
 llms:
@@ -109,21 +132,35 @@ llms:
     _type: nim
     model: ${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct}
     api_key: ${NVIDIA_API_KEY}
-    base_url: ${NIM_BASE_URL:-null}   # override for local vLLM / custom NIM
+    base_url: ${NIM_BASE_URL:-null}   # null = NVIDIA NIM; set for local vLLM / custom endpoint
 ```
 
-Override the model at launch without editing the YAML:
+### Environment variables (recommended)
 
 ```bash
-# Use a different NIM model
-COMPUTER_USE_MODEL=meta/llama-3.3-70b-instruct nat serve --config_file workflow.yaml
+# NVIDIA NIM (default)
+export NVIDIA_API_KEY=nvapi-...
+export COMPUTER_USE_MODEL=meta/llama-3.2-11b-vision-instruct
+export NIM_BASE_URL=https://integrate.api.nvidia.com/v1   # optional, NIM default
 
-# Point at a local vLLM endpoint
-NIM_BASE_URL=http://localhost:8000/v1 nat serve --config_file workflow.yaml
+# Local vLLM
+export NIM_BASE_URL=http://localhost:8000/v1
+export NVIDIA_API_KEY=unused
+export COMPUTER_USE_MODEL=my-local-model
 
-# Or via NAT --override flag
+# OpenAI
+export NIM_BASE_URL=https://api.openai.com/v1
+export NVIDIA_API_KEY=sk-...
+export COMPUTER_USE_MODEL=gpt-4o
+```
+
+### NAT `--override` flags
+
+```bash
 nat serve --config_file workflow.yaml \
-  --override llms.agent.model meta/llama-3.3-70b-instruct
+    --override llms.agent.model meta/llama-4-scout-17b-16e-instruct \
+    --override llms.agent.base_url https://integrate.api.nvidia.com/v1 \
+    --override llms.agent.api_key nvapi-...
 ```
 
 ---
