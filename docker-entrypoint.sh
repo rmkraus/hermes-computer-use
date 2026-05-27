@@ -40,6 +40,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ── Start NAT OpenAI server ──────────────────────────────────────────────────
-echo "Starting NAT OpenAI frontend on port ${COMPUTER_USE_PORT:-8000}..."
+# ── Start NAT server (OpenAI API + MCP bridge on /mcp) ──────────────────────
+export NAT_FRONT_END_WORKER=hermes_computer_use.mcp_bridge:MCPBridgeFrontEndWorker
+echo "Starting NAT server on port ${COMPUTER_USE_PORT:-8000}..."
+echo "  OpenAI API : /v1/chat/completions"
+echo "  MCP        : /mcp"
 exec nat serve --config_file /app/workflow.yaml "$@"

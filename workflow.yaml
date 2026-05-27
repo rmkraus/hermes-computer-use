@@ -6,72 +6,17 @@ llms:
     base_url: ${NIM_BASE_URL:-null}
     max_tokens: 4096
 
-functions:
-  take_screenshot:
-    _type: take_screenshot
-  zoom_region:
-    _type: zoom_region
-  click:
-    _type: click
-  move_mouse:
-    _type: move_mouse
-  type_text:
-    _type: type_text
-  key_press:
-    _type: key_press
-  scroll:
-    _type: scroll
-  run_command:
-    _type: run_command
-  list_windows:
-    _type: list_windows
-  focus_window:
-    _type: focus_window
-  get_screen_info:
-    _type: get_screen_info
-
 workflow:
-  _type: react_agent
-  llm_name: agent
-  description: "Ubuntu desktop automation agent — controls a real Ubuntu desktop via screenshot, mouse, keyboard, window-management, and shell tools."
+  _type: langgraph_wrapper
+  graph: src/hermes_computer_use/agent/agent.py:agent
   workflow_alias: computer_use
-  system_prompt: |
-    You are a Ubuntu desktop automation agent. You control a real Ubuntu desktop
-    using screenshot, mouse, keyboard, window-management, and shell tools.
-
-    ## Workflow
-    1. Take a screenshot to understand the current desktop state.
-    2. Plan the steps needed to accomplish the user's goal.
-    3. Execute each step: click, type, run commands, manage windows.
-    4. After each significant action, take a new screenshot to verify the result.
-    5. Report back with what you did and the current state.
-
-    ## Guidelines
-    - Always screenshot first before acting — never assume the desktop state.
-    - Use zoom_region to read small text or inspect UI elements closely.
-    - Prefer keyboard shortcuts over clicking when faster (e.g. Ctrl+C, Ctrl+V).
-    - Use run_command for tasks that are easier done in a terminal.
-    - If something fails, take a screenshot to diagnose before retrying.
-    - Be cautious with destructive operations — confirm before deleting files.
-  max_tool_calls: 20
-  use_native_tool_calling: true
-  tool_names:
-    - take_screenshot
-    - zoom_region
-    - click
-    - move_mouse
-    - type_text
-    - key_press
-    - scroll
-    - run_command
-    - list_windows
-    - focus_window
-    - get_screen_info
 
 general:
   front_end:
     _type: fastapi
     workflow:
+      method: POST
+      description: "Ubuntu desktop automation agent"
       openai_api_v1_path: /v1/chat/completions
     host: ${COMPUTER_USE_HOST:-0.0.0.0}
     port: ${COMPUTER_USE_PORT:-8000}
