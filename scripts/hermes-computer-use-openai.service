@@ -1,0 +1,39 @@
+[Unit]
+Description=Hermes Computer Use — OpenAI/FastAPI Mode
+Documentation=https://github.com/rmkraus/hermes-computer-use
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/hermes-computer-use.env
+
+# Pull latest image before starting (optional — remove if using pinned tags)
+ExecStartPre=-/usr/bin/docker pull ${COMPUTER_USE_IMAGE:-ghcr.io/rmkraus/hermes-computer-use:latest}
+# Remove any leftover container from a previous run
+ExecStartPre=-/usr/bin/docker rm -f hermes-computer-use-openai
+
+ExecStart=/usr/bin/docker run \
+    --name hermes-computer-use-openai \
+    --rm \
+    --init \
+    -p ${OPENAI_HOST_PORT:-8000}:8000 \
+    -e NVIDIA_API_KEY=${NVIDIA_API_KEY} \
+    -e COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-meta/llama-3.2-11b-vision-instruct} \
+    -e NIM_BASE_URL=${NIM_BASE_URL:-} \
+    ${COMPUTER_USE_IMAGE:-ghcr.io/rmkraus/hermes-computer-use:latest} openai
+
+ExecStop=/usr/bin/docker stop hermes-computer-use-openai
+
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+# Log to journald (view with: journalctl -u hermes-computer-use-openai -f)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hermes-computer-use-openai
+
+[Install]
+WantedBy=multi-user.target
