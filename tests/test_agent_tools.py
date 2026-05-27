@@ -55,6 +55,21 @@ class TestToolsImport:
         }
         assert set(tools.keys()) == expected
 
+    def test_tool_funcs_are_type_hint_introspectable(self, tools):
+        """Tool functions must not be functools.partial — LangGraph ToolNode calls
+        get_type_hints() on them and partial objects are not introspectable modules."""
+        import typing
+        import functools
+        for name, tool in tools.items():
+            func = tool.func
+            assert not isinstance(func, functools.partial), (
+                f"Tool '{name}' func is a functools.partial — LangGraph ToolNode will crash"
+            )
+            try:
+                typing.get_type_hints(func)
+            except TypeError as exc:
+                pytest.fail(f"Tool '{name}' func not introspectable by get_type_hints: {exc}")
+
     def test_each_call_gets_independent_checker(self):
         """Two calls to get_computer_use_tools return independently testable tool sets."""
         from hermes_computer_use.agent.tools import get_computer_use_tools

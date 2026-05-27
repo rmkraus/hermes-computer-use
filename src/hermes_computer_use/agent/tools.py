@@ -11,7 +11,6 @@ module never triggers a display connection.
 from __future__ import annotations
 
 import subprocess
-from functools import partial
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
@@ -276,15 +275,52 @@ def get_computer_use_tools(safety_checker: SafetyChecker | None = None) -> list:
     """
     checker = safety_checker or SafetyChecker()
 
+    # Use closures (not functools.partial) so get_type_hints() works on the
+    # wrapper functions.  LangGraph's ToolNode calls get_type_hints() to
+    # resolve injected args and partial objects are not introspectable modules.
+
+    def take_screenshot(max_dimension: int = 0) -> str:
+        return _take_screenshot(checker, max_dimension)
+
+    def zoom_region(x: int, y: int, width: int, height: int, output_size: int = 1024) -> str:
+        return _zoom_region(checker, x, y, width, height, output_size)
+
+    def click(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
+        return _click(checker, x, y, button, clicks)
+
+    def move_mouse(x: int, y: int, duration: float = 0.1) -> str:
+        return _move_mouse(checker, x, y, duration)
+
+    def scroll(x: int, y: int, amount: int) -> str:
+        return _scroll(checker, x, y, amount)
+
+    def type_text(text: str, interval: float = 0.02) -> str:
+        return _type_text(checker, text, interval)
+
+    def key_press(keys: str) -> str:
+        return _key_press(checker, keys)
+
+    def list_windows() -> str:
+        return _list_windows(checker)
+
+    def focus_window(window_id: str) -> str:
+        return _focus_window(checker, window_id)
+
+    def run_command(command: str, timeout: int = 30) -> str:
+        return _run_command(checker, command, timeout)
+
+    def get_screen_info() -> str:
+        return _get_screen_info(checker)
+
     return [
         StructuredTool.from_function(
-            func=partial(_take_screenshot, checker),
+            func=take_screenshot,
             name="take_screenshot",
             description="Capture a full-screen screenshot and return a base64 PNG data URI.",
             args_schema=TakeScreenshotInput,
         ),
         StructuredTool.from_function(
-            func=partial(_zoom_region, checker),
+            func=zoom_region,
             name="zoom_region",
             description=(
                 "Zoom into a rectangular region of the screen and return a base64 PNG. "
@@ -293,7 +329,7 @@ def get_computer_use_tools(safety_checker: SafetyChecker | None = None) -> list:
             args_schema=ZoomRegionInput,
         ),
         StructuredTool.from_function(
-            func=partial(_click, checker),
+            func=click,
             name="click",
             description=(
                 'Click the mouse at a screen position. '
@@ -303,25 +339,25 @@ def get_computer_use_tools(safety_checker: SafetyChecker | None = None) -> list:
             args_schema=ClickInput,
         ),
         StructuredTool.from_function(
-            func=partial(_move_mouse, checker),
+            func=move_mouse,
             name="move_mouse",
             description="Move the mouse cursor to a screen position without clicking.",
             args_schema=MoveMouseInput,
         ),
         StructuredTool.from_function(
-            func=partial(_scroll, checker),
+            func=scroll,
             name="scroll",
             description="Scroll the mouse wheel. Positive amount = up, negative = down.",
             args_schema=ScrollInput,
         ),
         StructuredTool.from_function(
-            func=partial(_type_text, checker),
+            func=type_text,
             name="type_text",
             description="Type a string of text using the keyboard.",
             args_schema=TypeTextInput,
         ),
         StructuredTool.from_function(
-            func=partial(_key_press, checker),
+            func=key_press,
             name="key_press",
             description=(
                 "Press keyboard keys or hotkey combinations. "
@@ -330,27 +366,28 @@ def get_computer_use_tools(safety_checker: SafetyChecker | None = None) -> list:
             args_schema=KeyPressInput,
         ),
         StructuredTool.from_function(
-            func=partial(_list_windows, checker),
+            func=list_windows,
             name="list_windows",
             description="List all visible windows currently open on the desktop.",
             args_schema=ListWindowsInput,
         ),
         StructuredTool.from_function(
-            func=partial(_focus_window, checker),
+            func=focus_window,
             name="focus_window",
             description="Bring a window to the foreground. Use window_id from list_windows.",
             args_schema=FocusWindowInput,
         ),
         StructuredTool.from_function(
-            func=partial(_run_command, checker),
+            func=run_command,
             name="run_command",
             description="Run a shell command (bash -c) and return its stdout + stderr output.",
             args_schema=RunCommandInput,
         ),
         StructuredTool.from_function(
-            func=partial(_get_screen_info, checker),
+            func=get_screen_info,
             name="get_screen_info",
             description="Get current screen resolution and display server info (X11/Wayland/none).",
             args_schema=GetScreenInfoInput,
         ),
     ]
+
