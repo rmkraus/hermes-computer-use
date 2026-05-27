@@ -1,12 +1,8 @@
 """LangChain tool wrappers for Ubuntu desktop automation.
 
-Tools are created via ``get_computer_use_tools(safety_checker)`` which
-returns a fresh list of StructuredTool instances bound to the given
-SafetyChecker.  This keeps tests fully isolated (each test gets its own
-checker) while letting the server share a single long-lived instance.
-
-Heavy imports (pyautogui) are deferred to call time so importing this
-module never triggers a display connection.
+Each tool is a plain function — no safety checker threading required.
+Safety checks are called directly where needed (text input, key combos).
+``get_computer_use_tools()`` returns a fresh list of StructuredTool instances.
 """
 from __future__ import annotations
 
@@ -22,6 +18,9 @@ from hermes_computer_use.tools.screenshot import (
     zoom_screenshot,
 )
 from hermes_computer_use.tools.window import WindowManager
+
+# Module-level checker — shared across all tools, stateless after removing rate limiting
+_safety = SafetyChecker()
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +42,7 @@ class ZoomRegionInput(BaseModel):
 
 class ClickInput(BaseModel):
     x: int = Field(description="Horizontal position in screen pixels.")
-    y: int = Field(description='Vertical position in screen pixels.')
+    y: int = Field(description="Vertical position in screen pixels.")
     button: str = Field(default="left", description='"left", "right", or "middle".')
     clicks: int = Field(default=1, description="1 = single click, 2 = double click.")
 
@@ -68,8 +67,8 @@ class TypeTextInput(BaseModel):
 class KeyPressInput(BaseModel):
     keys: str = Field(
         description=(
-            "Key or combination string.  Use + for simultaneous keys (e.g. 'ctrl+c'), "
-            "comma for sequential (e.g. 'enter,enter').  Examples: 'enter', 'ctrl+alt+t', 'F5'."
+            "Key or combination string. Use + for simultaneous keys (e.g. 'ctrl+c'), "
+            "comma for sequential (e.g. 'enter,enter'). Examples: 'enter', 'ctrl+alt+t', 'F5'."
         )
     )
 
@@ -92,43 +91,27 @@ class GetScreenInfoInput(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Implementation functions (accept safety as first positional arg)
+# Tool functions
 # ---------------------------------------------------------------------------
 
 
-def _take_screenshot(safety: SafetyChecker, max_dimension: int = 0) -> str:
-    safety.record_action()
+def take_screenshot(max_dimension: int = 0) -> str:
     try:
-        screenshot = capture_screenshot(max_dimension=max_dimension)
-        return f"data:image/png;base64,{screenshot.to_base64()}"
+        shot = capture_screenshot(max_dimension=max_dimension)
+        return f"data:image/png;base64,{shot.to_base64()}"
     except Exception as exc:
         return f"Screenshot failed: {exc}"
 
 
-def _zoom_region(
-    safety: SafetyChecker,
-    x: int,
-    y: int,
-    width: int,
-    height: int,
-    output_size: int = 1024,
-) -> str:
-    safety.record_action()
+def zoom_region(x: int, y: int, width: int, height: int, output_size: int = 1024) -> str:
     try:
-        screenshot = zoom_screenshot(x=x, y=y, width=width, height=height, output_size=output_size)
-        return f"data:image/png;base64,{screenshot.to_base64()}"
+        shot = zoom_screenshot(x=x, y=y, width=width, height=height, output_size=output_size)
+        return f"data:image/png;base64,{shot.to_base64()}"
     except Exception as exc:
         return f"Zoom failed: {exc}"
 
 
-def _click(
-    safety: SafetyChecker,
-    x: int,
-    y: int,
-    button: str = "left",
-    clicks: int = 1,
-) -> str:
-    safety.record_action()
+def click(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
     try:
         import pyautogui as pag  # noqa: PLC0415
         if clicks == 2:
@@ -140,13 +123,7 @@ def _click(
         return f"Click failed: {exc}"
 
 
-def _move_mouse(
-    safety: SafetyChecker,
-    x: int,
-    y: int,
-    duration: float = 0.1,
-) -> str:
-    safety.record_action()
+def move_mouse(x: int, y: int, duration: float = 0.1) -> str:
     try:
         import pyautogui as pag  # noqa: PLC0415
         pag.moveTo(x, y, duration=duration)
@@ -155,8 +132,7 @@ def _move_mouse(
         return f"Move failed: {exc}"
 
 
-def _scroll(safety: SafetyChecker, x: int, y: int, amount: int) -> str:
-    safety.record_action()
+def scroll(x: int, y: int, amount: int) -> str:
     try:
         import pyautogui as pag  # noqa: PLC0415
         pag.scroll(amount, x=x, y=y)
@@ -165,11 +141,10 @@ def _scroll(safety: SafetyChecker, x: int, y: int, amount: int) -> str:
         return f"Scroll failed: {exc}"
 
 
-def _type_text(safety: SafetyChecker, text: str, interval: float = 0.02) -> str:
-    result = safety.check_text(text)
+def type_text(text: str, interval: float = 0.02) -> str:
+    result = _safety.check_text(text)
     if not result.safe:
         return f"Blocked: {result.reason}"
-    safety.record_action()
     try:
         import pyautogui as pag  # noqa: PLC0415
         pag.write(text, interval=interval)
@@ -178,14 +153,13 @@ def _type_text(safety: SafetyChecker, text: str, interval: float = 0.02) -> str:
         return f"Type failed: {exc}"
 
 
-def _key_press(safety: SafetyChecker, keys: str) -> str:
-    safety.record_action()
+def key_press(keys: str) -> str:
     try:
         import pyautogui as pag  # noqa: PLC0415
         for combo in keys.split(","):
             combo = combo.strip()
             parts = [p.strip() for p in combo.split("+")]
-            check = safety.check_key_combo(parts)
+            check = _safety.check_key_combo(parts)
             if not check.safe:
                 return f"Blocked: {check.reason}"
             if len(parts) == 1:
@@ -197,11 +171,9 @@ def _key_press(safety: SafetyChecker, keys: str) -> str:
         return f"Key press failed: {exc}"
 
 
-def _list_windows(safety: SafetyChecker) -> str:
-    safety.record_action()
+def list_windows() -> str:
     try:
-        wm = WindowManager()
-        windows = wm.list_windows()
+        windows = WindowManager().list_windows()
         if not windows:
             return "No windows found."
         return "\n".join(f"{w.window_id}  {w.title!r}  {w.geometry}" for w in windows)
@@ -209,11 +181,9 @@ def _list_windows(safety: SafetyChecker) -> str:
         return f"list_windows failed: {exc}"
 
 
-def _focus_window(safety: SafetyChecker, window_id: str) -> str:
-    safety.record_action()
+def focus_window(window_id: str) -> str:
     try:
-        wm = WindowManager()
-        result = wm.focus_window(window_id)
+        result = WindowManager().focus_window(window_id)
         if result.get("status") == "success":
             return f"Focused window {window_id}"
         return f"focus_window failed: {result.get('message', 'unknown error')}"
@@ -221,11 +191,10 @@ def _focus_window(safety: SafetyChecker, window_id: str) -> str:
         return f"focus_window failed: {exc}"
 
 
-def _run_command(safety: SafetyChecker, command: str, timeout: int = 30) -> str:
-    check = safety.check_text(command)
+def run_command(command: str, timeout: int = 30) -> str:
+    check = _safety.check_text(command)
     if not check.safe:
         return f"Command blocked: {check.reason}"
-    safety.record_action()
     try:
         result = subprocess.run(  # noqa: S603
             ["bash", "-c", command],
@@ -241,8 +210,7 @@ def _run_command(safety: SafetyChecker, command: str, timeout: int = 30) -> str:
         return f"Command failed: {exc}"
 
 
-def _get_screen_info(safety: SafetyChecker) -> str:
-    safety.record_action()
+def get_screen_info() -> str:
     info = get_display_info()
     server = info.get("server_type", "none")
     display = info.get("display", "")
@@ -260,134 +228,95 @@ def _get_screen_info(safety: SafetyChecker) -> str:
 # Public factory
 # ---------------------------------------------------------------------------
 
+_TOOLS = [
+    StructuredTool.from_function(
+        func=take_screenshot,
+        name="take_screenshot",
+        description="Capture a full-screen screenshot and return a base64 PNG data URI.",
+        args_schema=TakeScreenshotInput,
+    ),
+    StructuredTool.from_function(
+        func=zoom_region,
+        name="zoom_region",
+        description=(
+            "Zoom into a rectangular region of the screen and return a base64 PNG. "
+            "Use this to read small text or inspect UI elements closely."
+        ),
+        args_schema=ZoomRegionInput,
+    ),
+    StructuredTool.from_function(
+        func=click,
+        name="click",
+        description=(
+            'Click the mouse at a screen position. '
+            'button: "left" (default), "right", or "middle". '
+            'clicks: 1 = single, 2 = double.'
+        ),
+        args_schema=ClickInput,
+    ),
+    StructuredTool.from_function(
+        func=move_mouse,
+        name="move_mouse",
+        description="Move the mouse cursor to a screen position without clicking.",
+        args_schema=MoveMouseInput,
+    ),
+    StructuredTool.from_function(
+        func=scroll,
+        name="scroll",
+        description="Scroll the mouse wheel. Positive amount = up, negative = down.",
+        args_schema=ScrollInput,
+    ),
+    StructuredTool.from_function(
+        func=type_text,
+        name="type_text",
+        description="Type a string of text using the keyboard.",
+        args_schema=TypeTextInput,
+    ),
+    StructuredTool.from_function(
+        func=key_press,
+        name="key_press",
+        description=(
+            "Press keyboard keys or hotkey combinations. "
+            "Use + for simultaneous (ctrl+c), comma for sequential (enter,enter)."
+        ),
+        args_schema=KeyPressInput,
+    ),
+    StructuredTool.from_function(
+        func=list_windows,
+        name="list_windows",
+        description="List all visible windows currently open on the desktop.",
+        args_schema=ListWindowsInput,
+    ),
+    StructuredTool.from_function(
+        func=focus_window,
+        name="focus_window",
+        description="Bring a window to the foreground. Use window_id from list_windows.",
+        args_schema=FocusWindowInput,
+    ),
+    StructuredTool.from_function(
+        func=run_command,
+        name="run_command",
+        description="Run a shell command (bash -c) and return its stdout + stderr output.",
+        args_schema=RunCommandInput,
+    ),
+    StructuredTool.from_function(
+        func=get_screen_info,
+        name="get_screen_info",
+        description="Get current screen resolution and display server info (X11/Wayland/none).",
+        args_schema=GetScreenInfoInput,
+    ),
+]
+
 
 def get_computer_use_tools(safety_checker: SafetyChecker | None = None) -> list:
-    """Return all computer-use LangChain tools bound to a SafetyChecker.
-
-    Creates a fresh list of StructuredTool instances on each call.
-    Pass a custom ``safety_checker`` for test isolation.
+    """Return all computer-use LangChain tools.
 
     Args:
-        safety_checker: Override the default module-level SafetyChecker.
+        safety_checker: Unused — retained for API compatibility. The module-level
+            ``_safety`` instance is used. Pass a custom checker only in tests that
+            need to inspect checker state directly.
 
     Returns:
         List of LangChain StructuredTool instances.
     """
-    checker = safety_checker or SafetyChecker()
-
-    # Use closures (not functools.partial) so get_type_hints() works on the
-    # wrapper functions.  LangGraph's ToolNode calls get_type_hints() to
-    # resolve injected args and partial objects are not introspectable modules.
-
-    def take_screenshot(max_dimension: int = 0) -> str:
-        return _take_screenshot(checker, max_dimension)
-
-    def zoom_region(x: int, y: int, width: int, height: int, output_size: int = 1024) -> str:
-        return _zoom_region(checker, x, y, width, height, output_size)
-
-    def click(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
-        return _click(checker, x, y, button, clicks)
-
-    def move_mouse(x: int, y: int, duration: float = 0.1) -> str:
-        return _move_mouse(checker, x, y, duration)
-
-    def scroll(x: int, y: int, amount: int) -> str:
-        return _scroll(checker, x, y, amount)
-
-    def type_text(text: str, interval: float = 0.02) -> str:
-        return _type_text(checker, text, interval)
-
-    def key_press(keys: str) -> str:
-        return _key_press(checker, keys)
-
-    def list_windows() -> str:
-        return _list_windows(checker)
-
-    def focus_window(window_id: str) -> str:
-        return _focus_window(checker, window_id)
-
-    def run_command(command: str, timeout: int = 30) -> str:
-        return _run_command(checker, command, timeout)
-
-    def get_screen_info() -> str:
-        return _get_screen_info(checker)
-
-    return [
-        StructuredTool.from_function(
-            func=take_screenshot,
-            name="take_screenshot",
-            description="Capture a full-screen screenshot and return a base64 PNG data URI.",
-            args_schema=TakeScreenshotInput,
-        ),
-        StructuredTool.from_function(
-            func=zoom_region,
-            name="zoom_region",
-            description=(
-                "Zoom into a rectangular region of the screen and return a base64 PNG. "
-                "Use this to read small text or inspect UI elements closely."
-            ),
-            args_schema=ZoomRegionInput,
-        ),
-        StructuredTool.from_function(
-            func=click,
-            name="click",
-            description=(
-                'Click the mouse at a screen position. '
-                'button: "left" (default), "right", or "middle". '
-                'clicks: 1 = single, 2 = double.'
-            ),
-            args_schema=ClickInput,
-        ),
-        StructuredTool.from_function(
-            func=move_mouse,
-            name="move_mouse",
-            description="Move the mouse cursor to a screen position without clicking.",
-            args_schema=MoveMouseInput,
-        ),
-        StructuredTool.from_function(
-            func=scroll,
-            name="scroll",
-            description="Scroll the mouse wheel. Positive amount = up, negative = down.",
-            args_schema=ScrollInput,
-        ),
-        StructuredTool.from_function(
-            func=type_text,
-            name="type_text",
-            description="Type a string of text using the keyboard.",
-            args_schema=TypeTextInput,
-        ),
-        StructuredTool.from_function(
-            func=key_press,
-            name="key_press",
-            description=(
-                "Press keyboard keys or hotkey combinations. "
-                "Use + for simultaneous (ctrl+c), comma for sequential (enter,enter)."
-            ),
-            args_schema=KeyPressInput,
-        ),
-        StructuredTool.from_function(
-            func=list_windows,
-            name="list_windows",
-            description="List all visible windows currently open on the desktop.",
-            args_schema=ListWindowsInput,
-        ),
-        StructuredTool.from_function(
-            func=focus_window,
-            name="focus_window",
-            description="Bring a window to the foreground. Use window_id from list_windows.",
-            args_schema=FocusWindowInput,
-        ),
-        StructuredTool.from_function(
-            func=run_command,
-            name="run_command",
-            description="Run a shell command (bash -c) and return its stdout + stderr output.",
-            args_schema=RunCommandInput,
-        ),
-        StructuredTool.from_function(
-            func=get_screen_info,
-            name="get_screen_info",
-            description="Get current screen resolution and display server info (X11/Wayland/none).",
-            args_schema=GetScreenInfoInput,
-        ),
-    ]
-
+    return list(_TOOLS)

@@ -100,12 +100,12 @@ class TestTakeScreenshot:
             result = tools["take_screenshot"].invoke({})
         assert "Screenshot failed" in result
 
-    def test_records_action(self, tools, safety):
+    def test_returns_data_uri_prefix(self, tools):
         from hermes_computer_use.tools.screenshot import Screenshot
         fake_shot = Screenshot(data=b"PNG", width=10, height=10)
         with patch("hermes_computer_use.agent.tools.capture_screenshot", return_value=fake_shot):
-            tools["take_screenshot"].invoke({})
-        assert len(safety._action_timestamps) == 1
+            result = tools["take_screenshot"].invoke({})
+        assert result.startswith("data:image/png;base64,")
 
     def test_accepts_max_dimension(self, tools):
         from hermes_computer_use.tools.screenshot import Screenshot
