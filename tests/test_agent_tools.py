@@ -68,7 +68,7 @@ class TestToolsImport:
 
 class TestTakeScreenshot:
     def test_returns_base64_on_success(self, tools):
-        from hermes_computer_use.tools.screenshot import Screenshot
+        from hermes_computer_use.helpers.screenshot import Screenshot
         fake_shot = Screenshot(data=b"\x89PNG\r\n", width=100, height=100)
         with patch("hermes_computer_use.agent.tools.capture_screenshot", return_value=fake_shot):
             result = tools["take_screenshot"].invoke({})
@@ -83,14 +83,14 @@ class TestTakeScreenshot:
         assert "Screenshot failed" in result
 
     def test_returns_data_uri_prefix(self, tools):
-        from hermes_computer_use.tools.screenshot import Screenshot
+        from hermes_computer_use.helpers.screenshot import Screenshot
         fake_shot = Screenshot(data=b"PNG", width=10, height=10)
         with patch("hermes_computer_use.agent.tools.capture_screenshot", return_value=fake_shot):
             result = tools["take_screenshot"].invoke({})
         assert result.startswith("data:image/png;base64,")
 
     def test_accepts_max_dimension(self, tools):
-        from hermes_computer_use.tools.screenshot import Screenshot
+        from hermes_computer_use.helpers.screenshot import Screenshot
         fake_shot = Screenshot(data=b"PNG", width=800, height=600)
         with patch(
             "hermes_computer_use.agent.tools.capture_screenshot", return_value=fake_shot
@@ -106,7 +106,7 @@ class TestTakeScreenshot:
 
 class TestZoomRegion:
     def test_returns_base64_on_success(self, tools):
-        from hermes_computer_use.tools.screenshot import Screenshot
+        from hermes_computer_use.helpers.screenshot import Screenshot
         fake_shot = Screenshot(data=b"\x89PNG", width=200, height=200)
         with patch("hermes_computer_use.agent.tools.zoom_screenshot", return_value=fake_shot):
             result = tools["zoom_region"].invoke({"x": 0, "y": 0, "width": 100, "height": 100})
@@ -272,7 +272,7 @@ class TestListWindows:
         assert "No windows" in result
 
     def test_with_windows(self, tools):
-        from hermes_computer_use.tools.window import WindowInfo
+        from hermes_computer_use.helpers.window import WindowInfo
         win = WindowInfo(
             window_id="12345", title="Firefox", class_name="Firefox",
             pid=1000, x=0, y=0, width=1200, height=800,
@@ -354,7 +354,7 @@ class TestGetScreenInfo:
         assert "server_type=none" in result
 
     def test_with_x11_display(self, tools):
-        from hermes_computer_use.tools.screenshot import Screenshot
+        from hermes_computer_use.helpers.screenshot import Screenshot
         fake_info = {"server_type": "x11", "display": ":0"}
         fake_shot = Screenshot(data=b"PNG", width=1920, height=1080)
         with (

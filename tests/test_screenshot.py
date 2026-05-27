@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
-from hermes_computer_use.tools.screenshot import (
+from hermes_computer_use.helpers.screenshot import (
     Screenshot,
     capture_screenshot,
     get_display_info,
@@ -129,7 +129,7 @@ class TestCaptureScreenshot:
         expected = Screenshot(data=sample_screenshot, width=1920, height=1080)
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=expected,
         ) as mock_cap:
             result = mock_cap()
@@ -141,10 +141,10 @@ class TestCaptureScreenshot:
         """Test PyAutoGUI fallback — _capture_pyautogui must return a Screenshot."""
         scrot_ss = Screenshot(data=sample_screenshot, width=1920, height=1080)
 
-        with patch("hermes_computer_use.tools.screenshot._capture_scrot", return_value=None):
-            with patch("hermes_computer_use.tools.screenshot._capture_xdotool", return_value=None):
+        with patch("hermes_computer_use.helpers.screenshot._capture_scrot", return_value=None):
+            with patch("hermes_computer_use.helpers.screenshot._capture_xdotool", return_value=None):
                 with patch(
-                    "hermes_computer_use.tools.screenshot._capture_pyautogui",
+                    "hermes_computer_use.helpers.screenshot._capture_pyautogui",
                     return_value=scrot_ss,
                 ):
                     ss = capture_screenshot(max_dimension=4096)  # No resize
@@ -160,10 +160,10 @@ class TestCaptureScreenshot:
         big_data = buf.read()
         big_ss = Screenshot(data=big_data, width=4000, height=3000)
 
-        with patch("hermes_computer_use.tools.screenshot._capture_scrot", return_value=None):
-            with patch("hermes_computer_use.tools.screenshot._capture_xdotool", return_value=None):
+        with patch("hermes_computer_use.helpers.screenshot._capture_scrot", return_value=None):
+            with patch("hermes_computer_use.helpers.screenshot._capture_xdotool", return_value=None):
                 with patch(
-                    "hermes_computer_use.tools.screenshot._capture_pyautogui",
+                    "hermes_computer_use.helpers.screenshot._capture_pyautogui",
                     return_value=big_ss,
                 ):
                     ss = capture_screenshot(max_dimension=1024)
@@ -180,10 +180,10 @@ class TestCaptureScreenshot:
         region_data = buf.read()
         region_ss = Screenshot(data=region_data, width=400, height=300)
 
-        with patch("hermes_computer_use.tools.screenshot._capture_scrot", return_value=None):
-            with patch("hermes_computer_use.tools.screenshot._capture_xdotool", return_value=None):
+        with patch("hermes_computer_use.helpers.screenshot._capture_scrot", return_value=None):
+            with patch("hermes_computer_use.helpers.screenshot._capture_xdotool", return_value=None):
                 with patch(
-                    "hermes_computer_use.tools.screenshot._capture_pyautogui",
+                    "hermes_computer_use.helpers.screenshot._capture_pyautogui",
                     return_value=region_ss,
                 ):
                     ss = capture_screenshot(region=(100, 100, 400, 300), max_dimension=4096)
@@ -195,15 +195,15 @@ class TestCaptureScreenshot:
         scrot_ss = Screenshot(data=sample_screenshot, width=1920, height=1080)
 
         with patch(
-            "hermes_computer_use.tools.screenshot._capture_scrot",
+            "hermes_computer_use.helpers.screenshot._capture_scrot",
             return_value=scrot_ss,
         ) as mock_scrot:
             with patch(
-                "hermes_computer_use.tools.screenshot._capture_xdotool",
+                "hermes_computer_use.helpers.screenshot._capture_xdotool",
                 return_value=None,
             ) as mock_xd:
                 with patch(
-                    "hermes_computer_use.tools.screenshot._capture_pyautogui",
+                    "hermes_computer_use.helpers.screenshot._capture_pyautogui",
                     return_value=None,
                 ) as mock_pag:
                     ss = capture_screenshot(max_dimension=4096)
@@ -215,24 +215,24 @@ class TestCaptureScreenshot:
     def test_all_methods_fail_raises(self, monkeypatch):
         """RuntimeError when every capture method fails."""
         monkeypatch.setenv("DISPLAY", ":0")
-        with patch("hermes_computer_use.tools.screenshot._capture_scrot", return_value=None):
-            with patch("hermes_computer_use.tools.screenshot._capture_xdotool", return_value=None):
-                with patch("hermes_computer_use.tools.screenshot._capture_pyautogui", return_value=None):
+        with patch("hermes_computer_use.helpers.screenshot._capture_scrot", return_value=None):
+            with patch("hermes_computer_use.helpers.screenshot._capture_xdotool", return_value=None):
+                with patch("hermes_computer_use.helpers.screenshot._capture_pyautogui", return_value=None):
                     with pytest.raises(RuntimeError, match="Screenshot capture failed"):
                         capture_screenshot()
 
     def test_logs_and_continues_on_method_exception(self, monkeypatch):
         """Capture methods that raise are logged and skipped, not bubbled."""
         monkeypatch.setenv("DISPLAY", ":0")
-        from hermes_computer_use.tools.screenshot import Screenshot
+        from hermes_computer_use.helpers.screenshot import Screenshot
         good_ss = Screenshot(data=b"PNG", width=10, height=10)
 
         bad = MagicMock(side_effect=Exception("boom"))
         bad.__name__ = "fake_method"
 
-        with patch("hermes_computer_use.tools.screenshot._capture_scrot", bad):
-            with patch("hermes_computer_use.tools.screenshot._capture_xdotool", bad):
-                with patch("hermes_computer_use.tools.screenshot._capture_pyautogui", return_value=good_ss):
+        with patch("hermes_computer_use.helpers.screenshot._capture_scrot", bad):
+            with patch("hermes_computer_use.helpers.screenshot._capture_xdotool", bad):
+                with patch("hermes_computer_use.helpers.screenshot._capture_pyautogui", return_value=good_ss):
                     result = capture_screenshot(max_dimension=0)
         assert result.width == 10
 
@@ -249,7 +249,7 @@ class TestCaptureScrot:
 
     def test_returns_screenshot_on_success(self, tmp_path, monkeypatch):
         """_capture_scrot returns a Screenshot when scrot succeeds."""
-        from hermes_computer_use.tools.screenshot import _capture_scrot
+        from hermes_computer_use.helpers.screenshot import _capture_scrot
 
         png_data = self._make_png()
 
@@ -263,7 +263,7 @@ class TestCaptureScrot:
             r.returncode = 0
             return r
 
-        with patch("hermes_computer_use.tools.screenshot.subprocess.run", side_effect=fake_run):
+        with patch("hermes_computer_use.helpers.screenshot.subprocess.run", side_effect=fake_run):
             result = _capture_scrot(None)
 
         assert result is not None
@@ -274,10 +274,10 @@ class TestCaptureScrot:
         """_capture_scrot returns None when scrot fails."""
         import subprocess as sp
 
-        from hermes_computer_use.tools.screenshot import _capture_scrot
+        from hermes_computer_use.helpers.screenshot import _capture_scrot
 
         with patch(
-            "hermes_computer_use.tools.screenshot.subprocess.run",
+            "hermes_computer_use.helpers.screenshot.subprocess.run",
             side_effect=sp.CalledProcessError(1, "scrot"),
         ):
             result = _capture_scrot(None)
@@ -286,10 +286,10 @@ class TestCaptureScrot:
 
     def test_returns_none_when_not_installed(self):
         """_capture_scrot returns None when scrot binary is missing."""
-        from hermes_computer_use.tools.screenshot import _capture_scrot
+        from hermes_computer_use.helpers.screenshot import _capture_scrot
 
         with patch(
-            "hermes_computer_use.tools.screenshot.subprocess.run",
+            "hermes_computer_use.helpers.screenshot.subprocess.run",
             side_effect=FileNotFoundError("scrot not found"),
         ):
             result = _capture_scrot(None)
@@ -300,7 +300,7 @@ class TestCaptureScrot:
         """_capture_scrot passes -a flag with region coords."""
         import os
 
-        from hermes_computer_use.tools.screenshot import _capture_scrot
+        from hermes_computer_use.helpers.screenshot import _capture_scrot
 
         png_data = self._make_png()
         captured_cmd = []
@@ -314,7 +314,7 @@ class TestCaptureScrot:
             r.returncode = 0
             return r
 
-        with patch("hermes_computer_use.tools.screenshot.subprocess.run", side_effect=fake_run):
+        with patch("hermes_computer_use.helpers.screenshot.subprocess.run", side_effect=fake_run):
             _capture_scrot((10, 20, 200, 100))
 
         assert "-a" in captured_cmd
@@ -333,20 +333,20 @@ class TestCaptureXdotool:
 
     def test_returns_none_on_failure(self):
         """_capture_xdotool returns None when xwd fails."""
-        from hermes_computer_use.tools.screenshot import _capture_xdotool
+        from hermes_computer_use.helpers.screenshot import _capture_xdotool
 
         mock_result = MagicMock()
         mock_result.returncode = 1
-        with patch("hermes_computer_use.tools.screenshot.subprocess.run", return_value=mock_result):
+        with patch("hermes_computer_use.helpers.screenshot.subprocess.run", return_value=mock_result):
             result = _capture_xdotool(None)
         assert result is None
 
     def test_returns_none_when_not_installed(self):
         """_capture_xdotool returns None when xwd binary is missing."""
-        from hermes_computer_use.tools.screenshot import _capture_xdotool
+        from hermes_computer_use.helpers.screenshot import _capture_xdotool
 
         with patch(
-            "hermes_computer_use.tools.screenshot.subprocess.run",
+            "hermes_computer_use.helpers.screenshot.subprocess.run",
             side_effect=FileNotFoundError("xwd not found"),
         ):
             result = _capture_xdotool(None)
@@ -356,7 +356,7 @@ class TestCaptureXdotool:
         """_capture_xdotool returns a Screenshot when xwd+convert succeed."""
         import os
 
-        from hermes_computer_use.tools.screenshot import _capture_xdotool
+        from hermes_computer_use.helpers.screenshot import _capture_xdotool
 
         png_data = self._make_png()
         call_count = [0]
@@ -372,7 +372,7 @@ class TestCaptureXdotool:
                     f.write(png_data)
             return r
 
-        with patch("hermes_computer_use.tools.screenshot.subprocess.run", side_effect=fake_run):
+        with patch("hermes_computer_use.helpers.screenshot.subprocess.run", side_effect=fake_run):
             result = _capture_xdotool(None)
 
         assert result is not None
@@ -383,7 +383,7 @@ class TestCaptureXdotool:
         """_capture_xdotool handles the region capture code path."""
         import os
 
-        from hermes_computer_use.tools.screenshot import _capture_xdotool
+        from hermes_computer_use.helpers.screenshot import _capture_xdotool
 
         png_data = self._make_png()
         call_count = [0]
@@ -398,18 +398,18 @@ class TestCaptureXdotool:
                     f.write(png_data)
             return r
 
-        with patch("hermes_computer_use.tools.screenshot.subprocess.run", side_effect=fake_run):
+        with patch("hermes_computer_use.helpers.screenshot.subprocess.run", side_effect=fake_run):
             result = _capture_xdotool((10, 20, 200, 100))
 
         assert result is not None
 
     def test_region_returns_none_when_xwd_fails(self):
         """_capture_xdotool(region) returns None when xwd returncode != 0."""
-        from hermes_computer_use.tools.screenshot import _capture_xdotool
+        from hermes_computer_use.helpers.screenshot import _capture_xdotool
 
         mock_result = MagicMock()
         mock_result.returncode = 1
-        with patch("hermes_computer_use.tools.screenshot.subprocess.run", return_value=mock_result):
+        with patch("hermes_computer_use.helpers.screenshot.subprocess.run", return_value=mock_result):
             result = _capture_xdotool((10, 20, 200, 100))
         assert result is None
 
@@ -422,7 +422,7 @@ class TestCapturePyautogui:
 
     def test_returns_screenshot_on_success(self):
         """_capture_pyautogui returns a Screenshot using mocked pyautogui."""
-        from hermes_computer_use.tools.screenshot import _capture_pyautogui
+        from hermes_computer_use.helpers.screenshot import _capture_pyautogui
         mock_pag = MagicMock()
         mock_pag.screenshot.return_value = self._make_pil_image()
 
@@ -435,7 +435,7 @@ class TestCapturePyautogui:
 
     def test_returns_screenshot_with_region(self):
         """_capture_pyautogui crops the full screenshot to the region."""
-        from hermes_computer_use.tools.screenshot import _capture_pyautogui
+        from hermes_computer_use.helpers.screenshot import _capture_pyautogui
 
         full_img = Image.new("RGB", (1920, 1080), color="gray")
         mock_pag = MagicMock()
@@ -450,7 +450,7 @@ class TestCapturePyautogui:
 
     def test_returns_none_on_exception(self):
         """_capture_pyautogui returns None when pyautogui raises."""
-        from hermes_computer_use.tools.screenshot import _capture_pyautogui
+        from hermes_computer_use.helpers.screenshot import _capture_pyautogui
 
         mock_pag = MagicMock()
         mock_pag.screenshot.side_effect = Exception("display error")
@@ -466,10 +466,10 @@ class TestGetScreenSize:
 
     def test_returns_dimensions(self, sample_screenshot):
         """get_screen_size returns (width, height) from a captured screenshot."""
-        from hermes_computer_use.tools.screenshot import Screenshot, get_screen_size
+        from hermes_computer_use.helpers.screenshot import Screenshot, get_screen_size
 
         mock_ss = Screenshot(data=sample_screenshot, width=1920, height=1080)
-        with patch("hermes_computer_use.tools.screenshot.capture_screenshot", return_value=mock_ss):
+        with patch("hermes_computer_use.helpers.screenshot.capture_screenshot", return_value=mock_ss):
             w, h = get_screen_size()
 
         assert w == 1920
@@ -504,7 +504,7 @@ class TestZoomScreenshot:
         small_ss = self._make_screenshot(50, 50, color="red")
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=small_ss,
         ):
             result = zoom_screenshot(x=10, y=10, width=50, height=50, output_size=200)
@@ -518,7 +518,7 @@ class TestZoomScreenshot:
         large_ss = self._make_screenshot(800, 600, color="blue")
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=large_ss,
         ):
             result = zoom_screenshot(x=0, y=0, width=800, height=600, output_size=400)
@@ -531,7 +531,7 @@ class TestZoomScreenshot:
         rect_ss = self._make_screenshot(200, 100, color="yellow")
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=rect_ss,
         ):
             result = zoom_screenshot(x=0, y=0, width=200, height=100, output_size=400)
@@ -544,7 +544,7 @@ class TestZoomScreenshot:
         small_ss = self._make_screenshot(40, 40)
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=small_ss,
         ):
             result = zoom_screenshot(x=5, y=5, width=40, height=40, output_size=160)
@@ -560,7 +560,7 @@ class TestZoomScreenshot:
         small_ss = self._make_screenshot(80, 60)
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=small_ss,
         ) as mock_cap:
             zoom_screenshot(x=100, y=200, width=80, height=60, output_size=320)
@@ -577,7 +577,7 @@ class TestZoomScreenshot:
         small_ss = self._make_screenshot(64, 64)
 
         with patch(
-            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            "hermes_computer_use.helpers.screenshot.capture_screenshot",
             return_value=small_ss,
         ):
             result = zoom_screenshot(x=0, y=0, width=64, height=64)

@@ -10,12 +10,12 @@ import subprocess
 
 from langchain_core.tools import tool
 
-from hermes_computer_use.tools.screenshot import (
+from hermes_computer_use.helpers.screenshot import (
     capture_screenshot,
     get_display_info,
     zoom_screenshot,
 )
-from hermes_computer_use.tools.window import WindowManager
+from hermes_computer_use.helpers.window import WindowManager
 
 # ---------------------------------------------------------------------------
 # Tools

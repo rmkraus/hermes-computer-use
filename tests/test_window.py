@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from hermes_computer_use.tools.window import WindowInfo, WindowManager
+from hermes_computer_use.helpers.window import WindowInfo, WindowManager
 
 
 class TestWindowManager:
     """Tests for the WindowManager class."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_check_xdotool_available(self, mock_run):
         """Test xdotool availability detection."""
         mock_result = MagicMock()
@@ -20,7 +20,7 @@ class TestWindowManager:
         wm = WindowManager()
         assert wm._xdotool_available is True
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_check_xdotool_unavailable(self, mock_run):
         """Test xdotool unavailable detection."""
         mock_run.side_effect = FileNotFoundError("xdotool not found")
@@ -28,7 +28,7 @@ class TestWindowManager:
         wm = WindowManager()
         assert wm._xdotool_available is False
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_list_windows_no_windows(self, mock_run):
         """Test listing windows when no windows match."""
         mock_result = MagicMock()
@@ -39,7 +39,7 @@ class TestWindowManager:
         windows = wm.list_windows()
         assert windows == []
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_focus_window_unavailable(self, mock_run):
         """Test focus window when xdotool not available."""
         mock_run.side_effect = FileNotFoundError()
@@ -50,7 +50,7 @@ class TestWindowManager:
         assert result["status"] == "error"
         assert "xdotool not available" in result["message"]
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_search_windows_unavailable(self, mock_run):
         """Test search windows when xdotool not available."""
         mock_run.side_effect = FileNotFoundError()
@@ -59,7 +59,7 @@ class TestWindowManager:
         windows = wm.search_windows("firefox")
         assert windows == []
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_get_active_window_unavailable(self, mock_run):
         """Test getting active window when xdotool not available."""
         mock_run.side_effect = FileNotFoundError()
@@ -68,7 +68,7 @@ class TestWindowManager:
         window = wm.get_active_window()
         assert window is None
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_minimize_window_unavailable(self, mock_run):
         """Test minimize window when xdotool not available."""
         mock_run.side_effect = FileNotFoundError()
@@ -78,7 +78,7 @@ class TestWindowManager:
 
         assert result["status"] == "error"
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_minimize_window_error(self, mock_run):
         """Test minimize window on subprocess error."""
         import subprocess as sp
@@ -128,7 +128,7 @@ class TestWindowInfo:
 class TestWindowManagerEdgeCases:
     """Edge case tests for WindowManager."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_timeout_on_list(self, mock_run):
         """Test handling timeout during window listing."""
         import subprocess as sp
@@ -139,7 +139,7 @@ class TestWindowManagerEdgeCases:
         windows = wm.list_windows()
         assert windows == []
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_empty_window_id(self, mock_run):
         """Test handling empty window IDs."""
         mock_result = MagicMock()
@@ -151,7 +151,7 @@ class TestWindowManagerEdgeCases:
         windows = wm.list_windows()
         assert windows == []
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_search_empty_term(self, mock_run):
         """Test searching with empty term."""
         mock_result = MagicMock()
@@ -188,7 +188,7 @@ class TestGetWindowInfo:
 
         return fake_run
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_returns_window_info(self, mock_run):
         """_get_window_info parses xdotool output into a WindowInfo."""
         responses = iter([
@@ -212,7 +212,7 @@ class TestGetWindowInfo:
         assert info.width == 800
         assert info.height == 600
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_returns_none_on_timeout(self, mock_run):
         """_get_window_info returns None on TimeoutExpired."""
         import subprocess as sp
@@ -234,7 +234,7 @@ class TestGetWindowInfo:
         result = wm._get_window_info("12345")
         assert result is None
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_handles_missing_geometry_fields(self, mock_run):
         """_get_window_info gracefully handles partial geometry output."""
         responses = iter([
@@ -259,7 +259,7 @@ class TestGetWindowInfo:
 class TestFocusWindow:
     """Tests for WindowManager.focus_window."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_success(self, mock_run):
         """focus_window returns success dict on happy path."""
         responses = iter([
@@ -274,7 +274,7 @@ class TestFocusWindow:
         assert result["status"] == "success"
         assert result["window_id"] == "12345"
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_called_process_error(self, mock_run):
         """focus_window returns error dict on CalledProcessError."""
         import subprocess as sp
@@ -299,7 +299,7 @@ class TestFocusWindow:
         assert result["status"] == "error"
         assert "Failed to focus" in result["message"]
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_timeout(self, mock_run):
         """focus_window returns error dict on TimeoutExpired."""
         import subprocess as sp
@@ -318,7 +318,7 @@ class TestFocusWindow:
 class TestSearchWindows:
     """Tests for WindowManager.search_windows."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_returns_matching_windows(self, mock_run):
         """search_windows returns populated list when xdotool finds matches."""
         responses = [
@@ -344,7 +344,7 @@ class TestSearchWindows:
         assert windows[0].title == "Firefox"
         assert windows[1].title == "Terminal"
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_timeout_returns_empty(self, mock_run):
         """search_windows returns [] on TimeoutExpired."""
         import subprocess as sp
@@ -358,7 +358,7 @@ class TestSearchWindows:
         result = wm.search_windows("anything")
         assert result == []
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_skips_windows_where_info_is_none(self, mock_run):
         """search_windows skips windows for which _get_window_info returns None."""
         import subprocess as sp
@@ -381,7 +381,7 @@ class TestSearchWindows:
 class TestGetActiveWindow:
     """Tests for WindowManager.get_active_window."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_returns_active_window(self, mock_run):
         """get_active_window returns WindowInfo for the focused window."""
         responses = [
@@ -401,7 +401,7 @@ class TestGetActiveWindow:
         assert result.title == "Code"
         assert result.width == 1280
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_returns_none_when_getactivewindow_fails(self, mock_run):
         """get_active_window returns None when xdotool returns non-zero."""
         mock_run.side_effect = [
@@ -413,7 +413,7 @@ class TestGetActiveWindow:
         result = wm.get_active_window()
         assert result is None
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_timeout_returns_none(self, mock_run):
         """get_active_window returns None on TimeoutExpired."""
         import subprocess as sp
@@ -431,7 +431,7 @@ class TestGetActiveWindow:
 class TestMinimizeWindow:
     """Tests for WindowManager.minimize_window."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_success(self, mock_run):
         """minimize_window returns success on happy path."""
         mock_run.side_effect = [
@@ -445,7 +445,7 @@ class TestMinimizeWindow:
         assert result["status"] == "success"
         assert result["window_id"] == "12345"
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_timeout(self, mock_run):
         """minimize_window returns error on TimeoutExpired."""
         import subprocess as sp
@@ -463,7 +463,7 @@ class TestMinimizeWindow:
 class TestListWindows:
     """Tests for WindowManager.list_windows with full _get_window_info integration."""
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_list_returns_windows(self, mock_run):
         """list_windows returns populated list when xdotool succeeds."""
         responses = [
@@ -482,7 +482,7 @@ class TestListWindows:
         assert len(windows) == 1
         assert windows[0].title == "Nautilus"
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_list_returns_empty_when_search_fails(self, mock_run):
         """list_windows returns [] when xdotool search returns non-zero."""
         mock_run.side_effect = [
@@ -492,7 +492,7 @@ class TestListWindows:
         wm = WindowManager()
         assert wm.list_windows() == []
 
-    @patch("hermes_computer_use.tools.window.subprocess.run")
+    @patch("hermes_computer_use.helpers.window.subprocess.run")
     def test_list_skips_windows_with_no_info(self, mock_run):
         """list_windows skips window IDs for which _get_window_info returns None."""
         import subprocess as sp
