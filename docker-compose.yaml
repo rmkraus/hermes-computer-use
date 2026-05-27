@@ -4,48 +4,16 @@ services:
     image: hermes-computer-use:latest
     container_name: hermes-computer-use
     ports:
-      - "8000:8000"   # NAT agent — POST /v1/chat/completions
+      - "8002:8000"   # host 8002 → container 8000 (host 8000 used by vLLM)
     environment:
-      # ── LLM provider (pick one) ─────────────────────────────────────────────
-      NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-
-      # ── Optional overrides ───────────────────────────────────────────────────
-      # LLM_MODEL: "meta/llama-4-scout-17b-16e-instruct"
-      # LLM_BASE_URL: "http://host.docker.internal:8080/v1"  # local vLLM
-
-      # ── Display (default: Xvfb virtual display) ──────────────────────────────
-      # To use the host's real X display instead, use the override file:
-      #   docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml up -d
-      DISPLAY_NUM: "1"
-      SCREEN_RESOLUTION: "1920x1080x24"
-
+      - COMPUTER_USE_MODEL=${COMPUTER_USE_MODEL:-openai:gpt-4o}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - DISPLAY_NUM=99
+    env_file:
+      - path: .env
+        required: false
     restart: unless-stopped
     shm_size: "256m"
-
-    # ── Host display (use the override file instead — it's easier) ──────────
-    # Preferred:
-    #   docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml up -d
-    #
-    # Or manually uncomment the block below.  Run `xhost +local:docker` on the
-    # host first, and ensure XAUTHORITY is set in your shell environment.
-    #
-    # volumes:
-    #   - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    #   - "${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.host-Xauthority:ro"
-    # environment:
-    #   DISPLAY: "${DISPLAY:-:0}"
-    #   XAUTHORITY: "/tmp/.host-Xauthority"
-    # # network_mode: host  # useful when the LLM is running on the host
-
-  # ── Observability (optional) ──────────────────────────────────────────────
-  # Uncomment to enable Phoenix tracing UI at http://localhost:6006
-  # phoenix:
-  #   image: arizephoenix/phoenix:latest
-  #   ports:
-  #     - "6006:6006"
-  #   volumes:
-  #     - phoenix_data:/mnt/user-data
-
-# volumes:
-#   phoenix_data:
+    security_opt:
+      - seccomp:unconfined   # required for Xvfb inside container

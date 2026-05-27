@@ -1,316 +1,199 @@
-# hermes-computer-use
+# Hermes Computer Use
 
-Ubuntu desktop automation agent — powered by **NVIDIA NeMo Agent Toolkit (NAT)**, served as an **OpenAI-compatible API**.
-
-Give it a goal in plain English. It sees the screen, reasons about what to do, clicks, types, and navigates — autonomously, in a loop — until the task is done.
-
-```bash
-# Start the agent
-docker compose up -d
-
-# Give it a task
-curl http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "computer-use",
-    "messages": [{"role": "user", "content": "Open Firefox and go to news.ycombinator.com"}]
-  }'
-```
-
----
-
-## Architecture
-
-Everything flows through a single port and a single API — the NAT `react_agent` on port 8000.
+Ubuntu desktop automation agent — powered by [LangChain DeepAgents](https://github.com/langchain-ai/deepagents), served as an **MCP server** and an **OpenAI-compatible API** on a single port.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  NVIDIA NeMo Agent Toolkit  (nat serve)                  │
-│  POST /v1/chat/completions  →  port 8000                 │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  react_agent  (ReAct loop)                       │   │
-│  │                                                  │   │
-│  │  goal → screenshot → reason → act → repeat       │   │
-│  │                                                  │   │
-│  │  Tools:                                          │   │
-│  │    take_screenshot      list_windows             │   │
-│  │    mouse_click          focus_window             │   │
-│  │    mouse_move           keyboard_type            │   │
-│  │    mouse_scroll         keyboard_key             │   │
-│  │    mouse_double_click   keyboard_hotkey          │   │
-│  │    check_action_safety                           │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  Ubuntu desktop  (real X display or Xvfb)        │   │
-│  └──────────────────────────────────────────────────┘   │
-└──────────────────────────┬───────────────────────────────┘
-                           │  /v1/chat/completions
-             ┌─────────────┼─────────────┐
-             │             │             │
-        ┌────┴────┐  ┌─────┴──────┐  ┌──┴───────┐
-        │ Hermes  │  │ Any OpenAI │  │  curl /  │
-        │ Agent   │  │   client   │  │  scripts │
-        └─────────┘  └────────────┘  └──────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  Any MCP Client                  Any OpenAI client             │
+│  (Hermes, Claude Desktop,        (curl, LangChain, Hermes,     │
+│   Cursor, VS Code, ...)           Python openai SDK, ...)      │
+└────────────┬───────────────────────────┬───────────────────────┘
+             │  MCP  /mcp                │  HTTP  /v1/chat/completions
+             ▼                           ▼
+┌────────────────────────────────────────────────────────────────┐
+│               hermes-computer-use server (port 8000)           │
+│  ┌──────────────────┐   ┌────────────────────────────────────┐ │
+│  │  FastMCP layer   │   │  FastAPI OpenAI-compat layer       │ │
+│  │  run_computer_use│   │  POST /v1/chat/completions         │ │
+│  └────────┬─────────┘   └───────────────┬────────────────────┘ │
+│           └────────────────┬────────────┘                      │
+│                            ▼                                    │
+│           ┌─────────────────────────────┐                      │
+│           │  DeepAgent (LangGraph graph) │                      │
+│           │  create_deep_agent(model,    │                      │
+│           │    tools=[...])              │                      │
+│           └─────────────┬───────────────┘                      │
+│                         ▼                                       │
+│           ┌─────────────────────────────┐                      │
+│           │  Computer-Use Tools          │                      │
+│           │  take_screenshot  click      │                      │
+│           │  type_text        key_press  │                      │
+│           │  scroll           move_mouse │                      │
+│           │  run_command      zoom_region│                      │
+│           │  list_windows  focus_window  │                      │
+│           │  get_screen_info             │                      │
+│           └─────────────────────────────┘                      │
+│                         ▼                                       │
+│           ┌─────────────────────────────┐                      │
+│           │  Xvfb virtual display        │                      │
+│           │  Ubuntu 24.04 desktop        │                      │
+│           └─────────────────────────────┘                      │
+└────────────────────────────────────────────────────────────────┘
 ```
-
-### How Hermes uses it
-
-Hermes calls `computer_use(action="run_goal", goal="...")` — one tool call with a
-natural-language goal. The NAT react_agent runs the full loop autonomously and
-returns a text summary when done. **Hermes never sees individual clicks or
-screenshots** — it sends a goal, gets back a result.
-
-```
-Hermes main model
-  → computer_use(action="run_goal", goal="Open Firefox and go to google.com")
-    → POST http://localhost:8000/v1/chat/completions
-      → NAT react_agent loop (inside container):
-          take_screenshot → reason → mouse_click(Firefox icon)
-          take_screenshot → reason → keyboard_type("google.com") → keyboard_key("Return")
-          take_screenshot → ✓ goal achieved
-      → returns "Successfully opened Firefox and navigated to google.com"
-  ← Hermes sees that summary string
-```
-
----
 
 ## Quick Start
 
-### Prerequisites
-
-- Docker + Docker Compose
-- An NVIDIA API key from [build.nvidia.com](https://build.nvidia.com) (free tier available)
-
-### 1. Clone and configure
+### Docker (recommended)
 
 ```bash
-git clone https://github.com/rmkraus/hermes-computer-use
-cd hermes-computer-use
+# Copy and fill in your LLM API key
 cp .env.example .env
-# Edit .env — add your NVIDIA_API_KEY
+# OPENAI_API_KEY=sk-...         (for gpt-4o)
+# NVIDIA_API_KEY=nvapi-...      (for NVIDIA NIM models)
+# COMPUTER_USE_MODEL=openai:gpt-4o
+
+docker compose up --build
 ```
 
-### 2. Start
+The server starts on **port 8002** (maps to 8000 inside the container).
+
+### Bare metal
 
 ```bash
-docker compose up -d
+# Install system deps
+sudo apt-get install -y xvfb scrot xdotool xterm
+
+# Install Python package
+pip install -e ".[all]"
+
+# Start the server
+COMPUTER_USE_MODEL=openai:gpt-4o \
+OPENAI_API_KEY=sk-... \
+python -m hermes_computer_use.server --port 8000
 ```
 
-This starts a container with an internal **Xvfb virtual display** (1920×1080) and
-launches the NAT server on port 8000. The agent has a fresh, isolated desktop to
-work on.
+## MCP Integration
 
-### 3. Send a task
+Add to your MCP client config (e.g. Claude Desktop `config.json`):
+
+```json
+{
+  "mcpServers": {
+    "computer-use": {
+      "url": "http://localhost:8002/mcp"
+    }
+  }
+}
+```
+
+Or for Hermes Agent (`~/.hermes/config.yaml`):
+
+```yaml
+mcp_servers:
+  - name: computer-use
+    url: http://localhost:8002/mcp
+```
+
+The server exposes **one MCP tool**:
+
+| Tool | Description |
+|------|-------------|
+| `run_computer_use` | Give the agent a plain-English goal. It screenshots, clicks, types, and runs commands to complete it. |
+
+## OpenAI API Integration
+
+Point any OpenAI client at the server:
 
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="not-needed")
+client = OpenAI(
+    base_url="http://localhost:8002/v1",
+    api_key="not-needed",
+)
 
 response = client.chat.completions.create(
-    model="computer-use",
-    messages=[{"role": "user", "content": "Open the terminal and run: echo 'Hello'"}]
+    model="hermes-computer-use",
+    messages=[{"role": "user", "content": "Open Firefox and go to example.com"}],
 )
 print(response.choices[0].message.content)
 ```
 
----
-
-## Display Modes
-
-### Default: Xvfb virtual display (isolated)
-
-The container starts its own virtual X display. Nothing on the host desktop is
-touched. Best for automation, CI, and headless servers.
+Or with curl:
 
 ```bash
-docker compose up -d
+curl http://localhost:8002/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"hermes-computer-use","messages":[{"role":"user","content":"Take a screenshot"}]}'
 ```
 
-### Host display: control the real desktop
+## Available Models
 
-To have the agent control your actual running desktop, use the host-display
-override. This mounts the host X socket and Xauthority file into the container.
+The agent works with any OpenAI-compatible LLM. Set `COMPUTER_USE_MODEL` to:
 
-**One-time host setup** (re-run after logout):
-```bash
-xhost +local:docker
-```
+| Model string | Description |
+|---|---|
+| `openai:gpt-4o` | GPT-4o (default) |
+| `openai:gpt-4o-mini` | Faster / cheaper |
+| `nvidia:meta/llama-3.1-70b-instruct` | NVIDIA NIM |
+| `nvidia:nvidia/llama-3.2-90b-vision-instruct` | NVIDIA NIM with vision |
+| Any `langchain` init_chat_model string | See [LangChain docs](https://python.langchain.com/docs/how_to/chat_models_universal_init/) |
 
-**Start with host display:**
-```bash
-docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml up -d
-```
+## Tool Catalog
 
-`DISPLAY` and `XAUTHORITY` are forwarded from your shell environment
-automatically. If `DISPLAY` is unset it defaults to `:0`. If `XAUTHORITY` is
-unset it defaults to `~/.Xauthority`.
-
-#### What the override does
-
-`docker-compose.host-display.yaml` mounts the host Xauthority to a **fixed
-container path** (`/tmp/.host-Xauthority`) regardless of where it lives on the
-host (`/root/.Xauthority`, `/run/user/1000/gdm/Xauthority`, etc.):
-
-```yaml
-volumes:
-  - /tmp/.X11-unix:/tmp/.X11-unix:rw
-  - "${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.host-Xauthority:ro"
-environment:
-  DISPLAY: "${DISPLAY:-:0}"
-  XAUTHORITY: "/tmp/.host-Xauthority"
-```
-
-The entrypoint exports `XAUTHORITY` before probing the display, so
-authentication is established before any X connection is attempted.
-
-#### Xvfb fallback
-
-If `DISPLAY` is set but the X server isn't reachable (e.g. you passed `:0` but
-the host display isn't mounted), the entrypoint falls back to starting Xvfb on
-that display number. The host Xauthority is **unset** in this case to avoid
-auth failures with the fresh Xvfb server.
-
-### Bare metal (no Docker)
-
-If the machine already has an X display you can run the NAT server directly:
-
-```bash
-git clone https://github.com/rmkraus/hermes-computer-use
-cd hermes-computer-use
-uv venv --python 3.11 && uv pip install -e .
-DISPLAY=:0 NVIDIA_API_KEY=your-key nat serve --config_file workflow.yaml
-```
-
----
-
-## Integration with Hermes Agent
-
-On Linux, Hermes auto-selects the NAT backend when the server is reachable.
-No config changes needed — just start the container and enable the tool:
-
-```bash
-docker compose up -d
-hermes tools enable computer_use
-```
-
-Then ask Hermes to do something on the desktop:
-
-> *"Use computer_use to open Firefox, go to github.com/rmkraus, and take a screenshot of the page."*
-
-Hermes calls `computer_use(action="run_goal", goal="...")` which delegates
-the entire task to the NAT subagent. The subagent runs the full loop and
-returns a summary.
-
----
-
-## Tools
-
-| Tool | Description |
+| Tool | What it does |
 |------|-------------|
-| `take_screenshot` | Capture current screen as base64 PNG |
-| `mouse_move` | Move cursor to (x, y) |
-| `mouse_click` | Click at (x, y) with optional button |
-| `mouse_double_click` | Double-click at (x, y) |
-| `mouse_scroll` | Scroll at (x, y) by delta |
-| `keyboard_type` | Type a string of text |
-| `keyboard_key` | Press a single key (Return, Tab, Escape, etc.) |
-| `keyboard_hotkey` | Press a key combo (ctrl+c, alt+F4, etc.) |
-| `list_windows` | List open windows with title, size, PID |
-| `focus_window` | Focus a window by title substring |
-| `check_action_safety` | Validate an action against the safety blocklist |
-
----
+| `take_screenshot` | Full-screen screenshot → base64 PNG |
+| `zoom_region` | Crop + upscale a region for reading small text |
+| `click` | Mouse click (left/right/middle, single/double) |
+| `move_mouse` | Move cursor without clicking |
+| `scroll` | Scroll wheel at position |
+| `type_text` | Type a string (blocked on dangerous patterns) |
+| `key_press` | Single key or hotkey combo (e.g. `ctrl+c`) |
+| `list_windows` | List all visible windows |
+| `focus_window` | Bring window to foreground |
+| `run_command` | Run shell command via `bash -c` |
+| `get_screen_info` | Screen resolution and display server type |
 
 ## Safety
 
-All actions pass through a **safety checker** before execution:
+The `SafetyChecker` runs before every action:
 
-- **Blocklist** — blocks dangerous shell commands (`rm -rf`, `mkfs`, `sudo shutdown`), credential-harvesting patterns, and system-critical key combos (`ctrl+alt+delete`, `ctrl+alt+esc`)
-- **Coordinate validation** — rejects out-of-bounds clicks
-- **Rate limiting** — prevents runaway action loops
-- **Self-check tool** — the agent can call `check_action_safety` before acting when uncertain
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NVIDIA_API_KEY` | — | NVIDIA NIM API key (required unless using OpenAI) |
-| `OPENAI_API_KEY` | — | Alternative: use OpenAI as the LLM backend |
-| `LLM_MODEL` | `meta/llama-4-scout-17b-16e-instruct` | Vision-capable model name |
-| `LLM_BASE_URL` | `https://integrate.api.nvidia.com/v1` | LLM API base URL |
-| `DISPLAY` | `:1` (Xvfb) | X display to control; set to `:0` for host display |
-| `DISPLAY_NUM` | `1` | Xvfb display number (ignored if `DISPLAY` is accessible) |
-| `SCREEN_RESOLUTION` | `1920x1080x24` | Virtual display resolution (Xvfb only) |
-
-### Using a local vLLM instance
-
-```bash
-LLM_BASE_URL=http://your-vllm-host:8080/v1 \
-LLM_MODEL=Qwen/Qwen2.5-VL-7B-Instruct \
-NVIDIA_API_KEY=placeholder \
-docker compose up -d
-```
-
----
+- **Text/command blocking** — rejects `rm -rf`, `DROP TABLE`, fork bombs, and credential patterns
+- **Hotkey blocking** — rejects `Alt+F4`, `Ctrl+Alt+Delete`, and other system-critical combos
+- **Coordinate validation** — warns on screen-edge clicks
+- **Rate limiting** — caps at 120 actions/minute
 
 ## Development
 
-### Install
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests (no display required)
+pytest tests/ -v
+
+# Lint
+ruff check src/ tests/
+
+# Type check
+mypy src/
+```
+
+### Test Markers
 
 ```bash
-git clone https://github.com/rmkraus/hermes-computer-use
-cd hermes-computer-use
-uv venv --python 3.11
-uv pip install -e ".[dev]"
+pytest -m "not integration"   # skip tests that need a real display
+pytest -m agent               # only agent/server tests
 ```
 
-### Run tests
+## Environment Variables
 
-```bash
-uv run python -m pytest tests/ -v
-```
-
-### Lint and type check
-
-```bash
-uv run ruff check src/ tests/
-uv run mypy src/
-```
-
-### Project structure
-
-```
-hermes-computer-use/
-├── src/hermes_computer_use/
-│   ├── nat/
-│   │   ├── __init__.py
-│   │   └── tools.py          # NAT @register_function tool wrappers
-│   ├── tools/
-│   │   ├── actions.py         # High-level action executor
-│   │   ├── input.py           # Mouse + keyboard input (pyautogui)
-│   │   ├── screenshot.py      # Screen capture (scrot / xdotool / pyautogui)
-│   │   ├── window.py          # Window management (xdotool)
-│   │   └── registry.py        # Tool capability registry
-│   └── safety/
-│       ├── checker.py         # Action safety checker
-│       └── blocklist.py       # Blocked action patterns
-├── tests/                     # 170+ tests, all passing
-├── workflow.yaml              # NAT react_agent configuration
-├── Dockerfile
-├── docker-compose.yaml                # Default: Xvfb virtual display
-├── docker-compose.host-display.yaml   # Override: use host X display
-└── docker-entrypoint.sh
-```
-
----
-
-## License
-
-MIT
+| Variable | Default | Description |
+|---|---|---|
+| `COMPUTER_USE_MODEL` | `openai:gpt-4o` | LLM model string |
+| `OPENAI_API_KEY` | — | OpenAI API key |
+| `NVIDIA_API_KEY` | — | NVIDIA NIM API key |
+| `COMPUTER_USE_PORT` | `8000` | Server port inside container |
+| `COMPUTER_USE_HOST` | `0.0.0.0` | Bind address |
+| `DISPLAY` | `:99` | X11 display (set automatically in Docker) |
