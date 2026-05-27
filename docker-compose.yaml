@@ -4,8 +4,7 @@ services:
     image: hermes-computer-use:latest
     container_name: hermes-computer-use
     ports:
-      - "8000:8000"   # NAT agent (react_agent loop → full goal delegation)
-      - "8001:8001"   # Direct tool REST API (spot screenshots etc.)
+      - "8000:8000"   # NAT agent — POST /v1/chat/completions
     environment:
       # ── LLM provider (pick one) ─────────────────────────────────────────────
       NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
@@ -16,10 +15,8 @@ services:
       # LLM_BASE_URL: "http://host.docker.internal:8080/v1"  # local vLLM
 
       # ── Display (default: Xvfb virtual display) ──────────────────────────────
-      # To use the host's real X display instead, uncomment the block below
-      # and also uncomment the volumes section.
-      #
-      # DISPLAY: "${DISPLAY:-:0}"
+      # To use the host's real X display instead, use the override file:
+      #   docker compose -f docker-compose.yaml -f docker-compose.host-display.yaml up -d
       DISPLAY_NUM: "1"
       SCREEN_RESOLUTION: "1920x1080x24"
 
@@ -39,9 +36,7 @@ services:
     # environment:
     #   DISPLAY: "${DISPLAY:-:0}"
     #   XAUTHORITY: "/tmp/.host-Xauthority"
-    # # host networking gives the container the same localhost as the host
-    # # (useful when the LLM is running on the host):
-    # # network_mode: host
+    # # network_mode: host  # useful when the LLM is running on the host
 
   # ── Observability (optional) ──────────────────────────────────────────────
   # Uncomment to enable Phoenix tracing UI at http://localhost:6006

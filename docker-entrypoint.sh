@@ -1,5 +1,5 @@
 #!/bin/bash
-# docker-entrypoint.sh — start display (if needed), tool REST API, and NAT server
+# docker-entrypoint.sh — start display (if needed) then the NAT server
 #
 # Display selection (in priority order):
 #   1. DISPLAY is set AND points to an accessible X server → use it as-is (host display)
@@ -15,7 +15,6 @@
 set -e
 
 SCREEN_RESOLUTION="${SCREEN_RESOLUTION:-1920x1080x24}"
-TOOL_API_PORT="${TOOL_API_PORT:-8001}"
 XVFB_PID=""
 
 # ── Xauthority setup ─────────────────────────────────────────────────────────
@@ -78,14 +77,7 @@ fi
 # where xhost wasn't run on the host beforehand)
 xhost +local: 2>/dev/null || true
 
-# ── Service startup ──────────────────────────────────────────────────────────
-echo "==> Starting tool REST API on port ${TOOL_API_PORT}"
-uvicorn hermes_computer_use.api.app:app \
-    --host 0.0.0.0 \
-    --port "${TOOL_API_PORT}" \
-    --log-level warning &
-TOOL_API_PID=$!
-
+# ── NAT server ───────────────────────────────────────────────────────────────
 echo "==> Starting NeMo Agent Toolkit server on port 8000"
 echo "    Model:   ${LLM_MODEL:-meta/llama-4-scout-17b-16e-instruct}"
 echo "    Display: ${DISPLAY}"
@@ -94,7 +86,6 @@ echo "    Xauth:   ${XAUTHORITY:-<none>}"
 # ── Cleanup ──────────────────────────────────────────────────────────────────
 _cleanup() {
     echo "==> Shutting down..."
-    kill "${TOOL_API_PID}" 2>/dev/null || true
     [ -n "${XVFB_PID}" ] && kill "${XVFB_PID}" 2>/dev/null || true
 }
 trap _cleanup INT TERM EXIT
