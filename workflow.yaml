@@ -20,6 +20,10 @@ functions:
     display: "${DISPLAY:-:1}"
     max_dimension: 1024
 
+  zoom_screenshot:
+    _type: zoom_screenshot
+    display: "${DISPLAY:-:1}"
+
   # ── Mouse ────────────────────────────────────────────────────────────────
   mouse_move:
     _type: mouse_move
@@ -68,6 +72,7 @@ workflow:
   llm_name: vision_llm
   tool_names:
     - take_screenshot
+    - zoom_screenshot
     - mouse_move
     - mouse_click
     - mouse_double_click
@@ -96,6 +101,8 @@ workflow:
 
     Key guidelines:
     - Use take_screenshot frequently — you cannot reason about the screen without it.
+    - When something is hard to read (small text, tiny buttons), use zoom_screenshot
+      with the region coordinates to get a high-resolution close-up.
     - Prefer keyboard_hotkey for common operations (ctrl+c, ctrl+v, ctrl+z).
     - Use keyboard_key for navigation (Tab, Return, Escape, arrow keys).
     - Double-click to open files/applications; single-click for buttons/links.

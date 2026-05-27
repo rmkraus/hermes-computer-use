@@ -226,6 +226,67 @@ def _capture_pyautogui(region: tuple[int, int, int, int] | None) -> Screenshot |
         return None
 
 
+def zoom_screenshot(
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    output_size: int = 1024,
+) -> Screenshot:
+    """Capture a region of the screen and upscale it to output_size pixels.
+
+    Crops the screen to the given rectangle, then upscales the crop so the
+    longest edge equals output_size. The result is a high-resolution close-up
+    of that region — useful for reading small text, inspecting UI elements, or
+    verifying form fields after a full-screen screenshot showed something
+    ambiguous.
+
+    Args:
+        x: Left edge of the region in screen coordinates.
+        y: Top edge of the region in screen coordinates.
+        width: Width of the region in pixels.
+        height: Height of the region in pixels.
+        output_size: Target size for the longest edge of the output image
+            (default 1024). The image is always upscaled to fill this, even
+            if the source region is smaller.
+
+    Returns:
+        Screenshot of the zoomed region, with width/height reflecting the
+        upscaled dimensions.
+
+    Raises:
+        ValueError: If width or height is <= 0.
+        RuntimeError: If no display server is available or capture fails.
+    """
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Region dimensions must be positive, got {width}x{height}")
+
+    # Capture exactly the requested region (no max_dimension cap here — we
+    # want the raw pixels so we can upscale deliberately below).
+    shot = capture_screenshot(region=(x, y, width, height), max_dimension=99999)
+
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(shot.data)).convert("RGB")
+
+    # Always scale UP to output_size so the caller gets a large, readable image.
+    scale = output_size / max(img.width, img.height)
+    new_w = max(1, round(img.width * scale))
+    new_h = max(1, round(img.height * scale))
+    img = img.resize((new_w, new_h), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return Screenshot(
+        data=buf.read(),
+        width=new_w,
+        height=new_h,
+        scale_factor=scale,
+    )
+
+
 def get_screen_size() -> tuple[int, int]:
     """Get the primary display resolution."""
     screenshot = capture_screenshot()

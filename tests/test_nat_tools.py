@@ -297,3 +297,95 @@ class TestWindowTools:
             windows = mgr.search_windows("nonexistent")
             assert windows == []
             # Tool would return: {"success": False, "error": "No window matching ..."}
+
+
+class TestZoomScreenshotTool:
+    """Tests for zoom_screenshot NAT tool logic."""
+
+    def _make_screenshot(self, width: int, height: int):
+        from PIL import Image
+        import io as _io
+        from hermes_computer_use.tools.screenshot import Screenshot
+
+        img = Image.new("RGB", (width, height), color="purple")
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return Screenshot(data=buf.read(), width=width, height=height)
+
+    @pytest.mark.asyncio
+    async def test_returns_json_with_required_keys(self):
+        """zoom_screenshot tool returns JSON with all expected keys."""
+        from hermes_computer_use.tools.screenshot import Screenshot
+
+        shot = self._make_screenshot(200, 200)
+        shot_scaled = Screenshot(data=shot.data, width=1024, height=1024, scale_factor=5.12)
+
+        async def _fn(x, y, width, height, output_size=1024) -> str:
+            return json.dumps({
+                "image_b64": shot_scaled.to_base64(),
+                "width": shot_scaled.width,
+                "height": shot_scaled.height,
+                "scale_factor": shot_scaled.scale_factor,
+                "urn": shot_scaled.to_urn(),
+            })
+
+        result = json.loads(await _fn(0, 0, 200, 200))
+        assert "image_b64" in result
+        assert "width" in result
+        assert "height" in result
+        assert "scale_factor" in result
+        assert "urn" in result
+
+    @pytest.mark.asyncio
+    async def test_invalid_dimensions_return_error(self):
+        """zoom_screenshot tool returns JSON error for zero dimensions."""
+
+        async def _fn(x, y, width, height, output_size=1024) -> str:
+            from hermes_computer_use.tools.screenshot import zoom_screenshot as _zoom
+            try:
+                shot = _zoom(x=x, y=y, width=width, height=height, output_size=output_size)
+            except ValueError as exc:
+                return json.dumps({"error": str(exc)})
+            return json.dumps({"image_b64": shot.to_base64()})
+
+        result = json.loads(await _fn(0, 0, 0, 100))
+        assert "error" in result
+        assert "positive" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_urn_format(self):
+        """zoom_screenshot URN starts with correct data URI prefix."""
+        shot = self._make_screenshot(100, 100)
+
+        async def _fn(x, y, width, height, output_size=1024) -> str:
+            return json.dumps({
+                "image_b64": shot.to_base64(),
+                "width": shot.width,
+                "height": shot.height,
+                "scale_factor": 1.0,
+                "urn": shot.to_urn(),
+            })
+
+        result = json.loads(await _fn(0, 0, 100, 100))
+        assert result["urn"].startswith("data:image/png;base64,")
+
+    @pytest.mark.asyncio
+    async def test_scale_factor_is_float(self):
+        """scale_factor in the response is a numeric float, not a string."""
+        from hermes_computer_use.tools.screenshot import Screenshot
+
+        shot = self._make_screenshot(50, 50)
+        zoomed = Screenshot(data=shot.data, width=1024, height=1024, scale_factor=20.48)
+
+        async def _fn(x, y, width, height, output_size=1024) -> str:
+            return json.dumps({
+                "image_b64": zoomed.to_base64(),
+                "width": zoomed.width,
+                "height": zoomed.height,
+                "scale_factor": zoomed.scale_factor,
+                "urn": zoomed.to_urn(),
+            })
+
+        result = json.loads(await _fn(0, 0, 50, 50))
+        assert isinstance(result["scale_factor"], float)

@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-from hermes_computer_use.tools.screenshot import Screenshot, capture_screenshot, get_display_info
+from hermes_computer_use.tools.screenshot import Screenshot, capture_screenshot, get_display_info, zoom_screenshot
 
 
 class TestScreenshot:
@@ -206,3 +206,113 @@ class TestCaptureScreenshot:
                     assert mock_scrot.called
                     assert not mock_xd.called
                     assert not mock_pag.called
+
+
+class TestZoomScreenshot:
+    """Tests for the zoom_screenshot function."""
+
+    def _make_screenshot(self, width: int, height: int, color="green") -> Screenshot:
+        """Helper: build a real PNG Screenshot of the given size."""
+        img = Image.new("RGB", (width, height), color=color)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        data = buf.read()
+        return Screenshot(data=data, width=width, height=height)
+
+    def test_invalid_width(self):
+        """zoom_screenshot raises ValueError for zero/negative width."""
+        with pytest.raises(ValueError, match="dimensions must be positive"):
+            zoom_screenshot(x=0, y=0, width=0, height=100)
+
+    def test_invalid_height(self):
+        """zoom_screenshot raises ValueError for zero/negative height."""
+        with pytest.raises(ValueError, match="dimensions must be positive"):
+            zoom_screenshot(x=0, y=0, width=100, height=-1)
+
+    def test_upscales_small_region(self):
+        """Small region is upscaled to output_size."""
+        # Pretend a 50×50 region was captured
+        small_ss = self._make_screenshot(50, 50, color="red")
+
+        with patch(
+            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            return_value=small_ss,
+        ):
+            result = zoom_screenshot(x=10, y=10, width=50, height=50, output_size=200)
+
+        assert result.width == 200
+        assert result.height == 200
+        assert result.scale_factor == pytest.approx(4.0, abs=0.05)
+
+    def test_downscales_large_region(self):
+        """Even a region larger than output_size is resized to output_size."""
+        large_ss = self._make_screenshot(800, 600, color="blue")
+
+        with patch(
+            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            return_value=large_ss,
+        ):
+            result = zoom_screenshot(x=0, y=0, width=800, height=600, output_size=400)
+
+        assert max(result.width, result.height) == 400
+
+    def test_aspect_ratio_preserved(self):
+        """Non-square region preserves aspect ratio after scaling."""
+        # 200×100 → longest edge = 200 → scale = output_size/200
+        rect_ss = self._make_screenshot(200, 100, color="yellow")
+
+        with patch(
+            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            return_value=rect_ss,
+        ):
+            result = zoom_screenshot(x=0, y=0, width=200, height=100, output_size=400)
+
+        assert result.width == 400
+        assert result.height == 200  # scaled proportionally (100 * 2)
+
+    def test_returns_screenshot_with_png_data(self):
+        """Output is a valid Screenshot with readable PNG bytes."""
+        small_ss = self._make_screenshot(40, 40)
+
+        with patch(
+            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            return_value=small_ss,
+        ):
+            result = zoom_screenshot(x=5, y=5, width=40, height=40, output_size=160)
+
+        assert isinstance(result, Screenshot)
+        assert len(result.data) > 0
+        # Must be valid PNG
+        img = Image.open(io.BytesIO(result.data))
+        assert img.format == "PNG"
+
+    def test_capture_screenshot_called_with_region(self):
+        """zoom_screenshot passes region=(x, y, width, height) to capture_screenshot."""
+        small_ss = self._make_screenshot(80, 60)
+
+        with patch(
+            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            return_value=small_ss,
+        ) as mock_cap:
+            zoom_screenshot(x=100, y=200, width=80, height=60, output_size=320)
+
+        # First positional/keyword arg should be region
+        call_kwargs = mock_cap.call_args
+        assert call_kwargs is not None
+        # Check region was passed correctly
+        region = call_kwargs.kwargs.get("region") or call_kwargs.args[0]
+        assert region == (100, 200, 80, 60)
+
+    def test_default_output_size_is_1024(self):
+        """Default output_size=1024 is applied when not specified."""
+        small_ss = self._make_screenshot(64, 64)
+
+        with patch(
+            "hermes_computer_use.tools.screenshot.capture_screenshot",
+            return_value=small_ss,
+        ):
+            result = zoom_screenshot(x=0, y=0, width=64, height=64)
+
+        assert max(result.width, result.height) == 1024
+

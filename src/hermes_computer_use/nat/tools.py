@@ -30,7 +30,7 @@ from nat.data_models.function import FunctionBaseConfig
 
 from hermes_computer_use.safety.checker import SafetyChecker
 from hermes_computer_use.tools.actions import DesktopActionExecutor
-from hermes_computer_use.tools.screenshot import capture_screenshot
+from hermes_computer_use.tools.screenshot import capture_screenshot, zoom_screenshot
 from hermes_computer_use.tools.window import WindowManager
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,70 @@ async def take_screenshot_tool(config: TakeScreenshotConfig, builder):
         )
 
     yield FunctionInfo.from_fn(_fn, description=_fn.__doc__ or "Take a screenshot")
+
+
+# ---------------------------------------------------------------------------
+# Zoom screenshot
+# ---------------------------------------------------------------------------
+
+
+class ZoomScreenshotConfig(FunctionBaseConfig, name="zoom_screenshot"):
+    display: str = Field(":0", description="X11 DISPLAY to capture from")
+
+
+@register_function(config_type=ZoomScreenshotConfig)
+async def zoom_screenshot_tool(config: ZoomScreenshotConfig, builder):
+    """Zoom into a screen region and return an upscaled PNG image."""
+
+    async def _fn(
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        output_size: int = 1024,
+    ) -> str:
+        """Capture a screen region and upscale it for close inspection.
+
+        Crops the screen to the rectangle starting at (x, y) with the given
+        dimensions, then upscales the crop so its longest edge equals
+        output_size. Use this when a full-screen screenshot is not detailed
+        enough to read small text, verify a value in an input field, or inspect
+        a small UI element.
+
+        Args:
+            x: Left edge of the region in screen pixels.
+            y: Top edge of the region in screen pixels.
+            width: Width of the region in screen pixels.
+            height: Height of the region in screen pixels.
+            output_size: Target size for the longest edge of the upscaled
+                output image (default 1024).
+
+        Returns:
+            JSON string with:
+              - image_b64: base64-encoded PNG of the zoomed region
+              - width: output image width in pixels (after upscaling)
+              - height: output image height in pixels (after upscaling)
+              - scale_factor: ratio applied when upscaling
+              - urn: data URI usable directly in vision model messages
+        """
+        import os
+
+        os.environ.setdefault("DISPLAY", config.display)
+        try:
+            shot = zoom_screenshot(x=x, y=y, width=width, height=height, output_size=output_size)
+        except ValueError as exc:
+            return json.dumps({"error": str(exc)})
+        return json.dumps(
+            {
+                "image_b64": shot.to_base64(),
+                "width": shot.width,
+                "height": shot.height,
+                "scale_factor": shot.scale_factor,
+                "urn": shot.to_urn(),
+            }
+        )
+
+    yield FunctionInfo.from_fn(_fn, description=_fn.__doc__ or "Zoom into a screen region")
 
 
 # ---------------------------------------------------------------------------
