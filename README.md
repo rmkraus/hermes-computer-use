@@ -6,12 +6,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Ubuntu desktop automation agent — a [DeepAgents](https://github.com/langchain-ai/deepagents)
-ReAct loop served by [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit) (NAT)
-with a streaming OpenAI-compatible `/v1/chat/completions` endpoint.
+ReAct loop served by [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit) (NAT).
 
-Any OpenAI client (Hermes Agent, Cursor, Claude Desktop, `curl`) can drive the agent by sending
-a plain-English goal. The agent takes screenshots, clicks, types, manages windows, and runs
-shell commands on a real Ubuntu desktop until the goal is achieved.
+Supports **two serving modes** from the same image:
+
+| Mode | Protocol | Default port | Clients |
+|------|----------|-------------|---------|
+| `openai` (default) | OpenAI-compatible REST (`/v1/chat/completions`) | 8000 | Hermes, Cursor, `curl`, any OpenAI SDK |
+| `mcp` | Model Context Protocol (`/mcp`, streamable-http) | 9901 | Hermes native MCP, Claude Desktop, any MCP client |
+
+The agent takes screenshots, clicks, types, manages windows, and runs shell commands on a real
+Ubuntu desktop until the goal is achieved.
 
 ---
 
@@ -52,10 +57,32 @@ to get the NAT-configured LLM, then hands it to `create_deep_agent()` with the t
 ```bash
 cp .env.example .env
 # Set NVIDIA_API_KEY in .env
-docker compose up
 ```
 
-The server starts on **`http://localhost:8002`** (host port 8002 → container 8000).
+**OpenAI mode** (default) — `POST /v1/chat/completions` on port 8002:
+```bash
+docker run --rm -p 8002:8000 --env-file .env hermes-computer-use:latest
+# or with docker compose:
+docker compose up computer-use-openai
+```
+
+**MCP mode** — streamable-http `/mcp` on port 9901:
+```bash
+docker run --rm -p 9901:9901 --env-file .env hermes-computer-use:latest mcp
+# or with docker compose:
+docker compose up computer-use-mcp
+```
+
+**Override the LLM at runtime** (works for both modes):
+```bash
+docker run --rm -p 8002:8000 --env-file .env hermes-computer-use:latest openai \
+    --override llms.agent.model meta/llama-4-scout-17b-16e-instruct
+
+docker run --rm -p 9901:9901 --env-file .env hermes-computer-use:latest mcp \
+    --override llms.agent.model gpt-4o
+```
+
+Any extra arguments after `openai` or `mcp` are passed through directly to `nat`.
 
 ### Bare metal
 

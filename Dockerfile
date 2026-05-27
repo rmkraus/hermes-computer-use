@@ -30,6 +30,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src/ ./src/
 COPY workflow.yaml ./
+COPY workflow-mcp.yaml ./
 
 # Install into a venv (avoids --break-system-packages on Python 3.12)
 ENV VIRTUAL_ENV=/app/.venv
@@ -45,6 +46,9 @@ ENV DISPLAY_NUM=99
 ENV COMPUTER_USE_PORT=8000
 ENV COMPUTER_USE_HOST=0.0.0.0
 
+# OpenAI frontend port (default)
 EXPOSE 8000
+# MCP frontend port
+EXPOSE 9901
 
 ENTRYPOINT ["/entrypoint.sh"]
