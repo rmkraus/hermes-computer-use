@@ -9,6 +9,9 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from deepagents import create_deep_agent
+from langchain.chat_models import init_chat_model
+
 from hermes_computer_use.agent.tools import get_computer_use_tools
 from hermes_computer_use.safety.checker import SafetyChecker
 
@@ -59,13 +62,10 @@ def create_computer_use_agent(
         A compiled LangGraph ``CompiledStateGraph`` ready to ``.invoke()``
         or ``.stream()``.
     """
-    from deepagents import create_deep_agent  # noqa: PLC0415
-
     # Resolve model
     if model is None:
         model = os.environ.get("COMPUTER_USE_MODEL", "openai:gpt-4o")
     if isinstance(model, str):
-        from langchain.chat_models import init_chat_model  # noqa: PLC0415
         model = init_chat_model(model)
 
     tools = get_computer_use_tools(safety_checker=safety_checker)

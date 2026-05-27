@@ -14,7 +14,10 @@ from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+
+from hermes_computer_use.agent.graph import create_computer_use_agent
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +37,6 @@ _agent_cache: dict[str, Any] = {}
 
 def _get_agent() -> Any:
     if "agent" not in _agent_cache:
-        from hermes_computer_use.agent.graph import create_computer_use_agent  # noqa: PLC0415
         _agent_cache["agent"] = create_computer_use_agent()
         logger.info("DeepAgent initialised for OpenAI API")
     return _agent_cache["agent"]
@@ -138,13 +140,10 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
     for msg in request.messages:
         content = msg.content if isinstance(msg.content, str) else str(msg.content)
         if msg.role == "system":
-            from langchain_core.messages import SystemMessage  # noqa: PLC0415
             lc_messages.append(SystemMessage(content=content))
         elif msg.role == "user":
-            from langchain_core.messages import HumanMessage  # noqa: PLC0415
             lc_messages.append(HumanMessage(content=content))
         elif msg.role == "assistant":
-            from langchain_core.messages import AIMessage  # noqa: PLC0415
             lc_messages.append(AIMessage(content=content))
 
     try:

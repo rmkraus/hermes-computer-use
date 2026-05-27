@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -59,8 +60,6 @@ def is_action_blocked(action: str, params: dict[str, Any] | None = None) -> dict
 
         # Check pattern match
         if "pattern" in rule:
-            import re
-
             for value in params.values():
                 if isinstance(value, str) and re.search(rule["pattern"], value):
                     return {"blocked": True, "reason": rule["reason"]}

@@ -10,6 +10,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import Any
 
+from PIL import Image
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,8 +34,6 @@ class Screenshot:
 
     def resize(self, max_dimension: int = 1024) -> Screenshot:
         """Resize screenshot to fit within max_dimension while maintaining aspect ratio."""
-        from PIL import Image
-
         img = Image.open(io.BytesIO(self.data)).convert("RGB")
         if max(self.width, self.height) <= max_dimension:
             return self  # No resize needed
@@ -136,8 +136,6 @@ def _capture_scrot(region: tuple[int, int, int, int] | None) -> Screenshot | Non
         with open(path, "rb") as f:
             data = f.read()
 
-        from PIL import Image
-
         img = Image.open(io.BytesIO(data))
         return Screenshot(data=data, width=img.width, height=img.height)
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -147,8 +145,6 @@ def _capture_scrot(region: tuple[int, int, int, int] | None) -> Screenshot | Non
 def _capture_xdotool(region: tuple[int, int, int, int] | None) -> Screenshot | None:
     """Capture using xwd + convert (ImageMagick) via xdotool."""
     try:
-        from PIL import Image
-
         if region:
             x, y, w, h = region
             # Use xwd to capture region
@@ -196,7 +192,7 @@ def _capture_xdotool(region: tuple[int, int, int, int] | None) -> Screenshot | N
 def _capture_pyautogui(region: tuple[int, int, int, int] | None) -> Screenshot | None:
     """Capture using PyAutoGUI as a fallback."""
     try:
-        import pyautogui
+        import pyautogui  # noqa: PLC0415 — deferred: connecting to display on import breaks headless tests
 
         # PyAutoGUI doesn't support regions directly, so we crop afterwards
         if region:
@@ -257,8 +253,6 @@ def zoom_screenshot(
     # Capture exactly the requested region (no max_dimension cap — we want
     # raw pixels so we can upscale deliberately below).
     shot = capture_screenshot(region=(x, y, width, height), max_dimension=0)
-
-    from PIL import Image
 
     img = Image.open(io.BytesIO(shot.data)).convert("RGB")
 

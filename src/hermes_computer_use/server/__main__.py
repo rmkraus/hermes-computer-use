@@ -19,6 +19,13 @@ import argparse
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI
+
+from hermes_computer_use.server.mcp_server import create_mcp_server
+from hermes_computer_use.server.openai_server import router as openai_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,12 +36,6 @@ logger = logging.getLogger(__name__)
 
 def _build_combined_app():
     """Mount both MCP and OpenAI API under one ASGI app."""
-    from contextlib import asynccontextmanager  # noqa: PLC0415
-
-    from fastapi import FastAPI  # noqa: PLC0415
-    from hermes_computer_use.server.mcp_server import create_mcp_server  # noqa: PLC0415
-    from hermes_computer_use.server.openai_server import router as openai_router  # noqa: PLC0415
-
     mcp = create_mcp_server()
     mcp_http = mcp.http_app()
 
@@ -70,10 +71,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--reload", action="store_true", help="Enable hot-reload (dev mode)")
     args = parser.parse_args(argv)
 
-    import uvicorn  # noqa: PLC0415
-
     if args.mcp_only:
-        from hermes_computer_use.server.mcp_server import create_mcp_server  # noqa: PLC0415
         mcp = create_mcp_server()
         logger.info("Starting MCP-only server on %s:%d/mcp", args.host, args.port)
         mcp.run(transport="streamable-http", host=args.host, port=args.port)

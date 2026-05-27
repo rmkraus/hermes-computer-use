@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -32,8 +33,6 @@ class ToolCapability:
 
     def _has_display_server(self) -> bool:
         """Check if a display server (X11/Wayland) is available."""
-        import os
-
         return bool(os.environ.get("DISPLAY")) or bool(
             os.environ.get("WAYLAND_DISPLAY")
         )

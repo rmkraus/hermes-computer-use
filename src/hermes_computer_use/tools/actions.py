@@ -8,7 +8,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from .input import InputSimulator, KeyboardAction
+from .input import InputSimulator, KeyboardAction, MouseButton
+from .screenshot import capture_screenshot
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +92,6 @@ class DesktopActionExecutor:
             button: Mouse button (left/middle/right).
             clicks: Number of clicks.
         """
-        from .input import MouseButton
-
         return self.input_simulator.click(
             x, y,
             button=MouseButton(button),
@@ -210,8 +209,6 @@ class DesktopActionExecutor:
         Args:
             path: Optional path to save screenshot.
         """
-        from .screenshot import capture_screenshot
-
         try:
             screenshot = capture_screenshot()
 

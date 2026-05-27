@@ -11,6 +11,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from fastmcp import FastMCP
+
+from hermes_computer_use.agent.graph import create_computer_use_agent
+
 logger = logging.getLogger(__name__)
 
 # Module-level cache so the agent is initialised once and tests can patch it.
@@ -20,7 +24,6 @@ _agent_cache: dict[str, Any] = {}
 def _get_agent() -> Any:
     """Lazily initialise and cache the DeepAgent."""
     if "agent" not in _agent_cache:
-        from hermes_computer_use.agent.graph import create_computer_use_agent  # noqa: PLC0415
         _agent_cache["agent"] = create_computer_use_agent()
         logger.info("DeepAgent initialised")
     return _agent_cache["agent"]
@@ -57,8 +60,6 @@ def create_mcp_server() -> Any:
     Returns:
         A :class:`fastmcp.FastMCP` instance.
     """
-    from fastmcp import FastMCP  # noqa: PLC0415
-
     mcp = FastMCP(
         name="hermes-computer-use",
         instructions=(
