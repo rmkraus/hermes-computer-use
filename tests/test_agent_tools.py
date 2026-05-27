@@ -169,6 +169,13 @@ class TestMoveMouse:
             tools["move_mouse"].invoke({"x": 0, "y": 0, "duration": 0.5})
         mock_pag.moveTo.assert_called_once_with(0, 0, duration=0.5)
 
+    def test_returns_error_on_failure(self, tools):
+        bad_pag = MagicMock()
+        bad_pag.moveTo.side_effect = Exception("display gone")
+        with patch.dict("sys.modules", {"pyautogui": bad_pag}):
+            result = tools["move_mouse"].invoke({"x": 0, "y": 0})
+        assert "Move failed" in result
+
 
 # ---------------------------------------------------------------------------
 # scroll
@@ -186,6 +193,13 @@ class TestScroll:
         with patch.dict("sys.modules", {"pyautogui": mock_pag}):
             result = tools["scroll"].invoke({"x": 0, "y": 0, "amount": -5})
         assert "-5" in result
+
+    def test_returns_error_on_failure(self, tools):
+        bad_pag = MagicMock()
+        bad_pag.scroll.side_effect = Exception("display gone")
+        with patch.dict("sys.modules", {"pyautogui": bad_pag}):
+            result = tools["scroll"].invoke({"x": 0, "y": 0, "amount": 1})
+        assert "Scroll failed" in result
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +224,13 @@ class TestTypeText:
         with patch.dict("sys.modules", {"pyautogui": mock_pag}):
             result = tools["type_text"].invoke({"text": "password: secret123"})
         assert "Blocked" in result
+
+    def test_returns_error_on_failure(self, tools):
+        bad_pag = MagicMock()
+        bad_pag.write.side_effect = Exception("display gone")
+        with patch.dict("sys.modules", {"pyautogui": bad_pag}):
+            result = tools["type_text"].invoke({"text": "hello"})
+        assert "Type failed" in result
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +267,13 @@ class TestKeyPress:
         assert "ctrl+alt+t" in result
         mock_pag.hotkey.assert_called_once_with("ctrl", "alt", "t")
 
+    def test_returns_error_on_failure(self, tools):
+        bad_pag = MagicMock()
+        bad_pag.press.side_effect = Exception("display gone")
+        with patch.dict("sys.modules", {"pyautogui": bad_pag}):
+            result = tools["key_press"].invoke({"keys": "enter"})
+        assert "Key press failed" in result
+
 
 # ---------------------------------------------------------------------------
 # list_windows
@@ -272,6 +300,12 @@ class TestListWindows:
         assert "Firefox" in result
         assert "1200x800" in result
 
+    def test_exception_path(self, tools):
+        with patch("hermes_computer_use.agent.tools.WindowManager") as mock_wm:
+            mock_wm.side_effect = Exception("xdotool missing")
+            result = tools["list_windows"].invoke({})
+        assert "list_windows failed" in result
+
 
 # ---------------------------------------------------------------------------
 # focus_window
@@ -292,6 +326,12 @@ class TestFocusWindow:
             }
             result = tools["focus_window"].invoke({"window_id": "0"})
         assert "failed" in result
+
+    def test_exception_path(self, tools):
+        with patch("hermes_computer_use.agent.tools.WindowManager") as mock_wm:
+            mock_wm.side_effect = Exception("xdotool exploded")
+            result = tools["focus_window"].invoke({"window_id": "0"})
+        assert "focus_window failed" in result
 
 
 # ---------------------------------------------------------------------------
@@ -345,3 +385,13 @@ class TestGetScreenInfo:
         assert "width=1920" in result
         assert "height=1080" in result
         assert "x11" in result
+
+    def test_capture_failure_still_returns_server_type(self, tools):
+        fake_info = {"server_type": "x11", "display": ":0"}
+        with (
+            patch("hermes_computer_use.agent.tools.get_display_info", return_value=fake_info),
+            patch("hermes_computer_use.agent.tools.capture_screenshot", side_effect=RuntimeError("no screen")),
+        ):
+            result = tools["get_screen_info"].invoke({})
+        assert "server_type=x11" in result
+        assert "width=" not in result
