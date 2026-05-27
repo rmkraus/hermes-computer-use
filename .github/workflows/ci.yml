@@ -31,9 +31,9 @@ jobs:
           uv pip install --python .venv/bin/python -e ".[dev]"
 
       - name: Run tests
-        run: .venv/bin/python -m pytest tests/ -v --tb=short -m "not integration"
-        env:
-          DISPLAY: ""
+        run: |
+          unset DISPLAY
+          .venv/bin/python -m pytest tests/ -v --tb=short -m "not integration"
 
       - name: Lint (ruff)
         run: .venv/bin/ruff check src/ tests/

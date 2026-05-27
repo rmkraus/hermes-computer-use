@@ -12,7 +12,9 @@ from typing import Any
 
 try:
     import pyautogui
-except ImportError:
+except Exception:
+    # Catches ImportError AND Xlib.error.DisplayNameError (raised by mouseinfo
+    # at import time when DISPLAY is absent or invalid in headless environments)
     pyautogui = None  # type: ignore[assignment]
 logger = logging.getLogger(__name__)
 
