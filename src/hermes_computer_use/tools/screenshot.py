@@ -38,7 +38,7 @@ class Screenshot:
         if max(self.width, self.height) <= max_dimension:
             return self  # No resize needed
 
-        img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
+        img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
@@ -260,7 +260,7 @@ def zoom_screenshot(
     scale = output_size / max(img.width, img.height)
     new_w = max(1, round(img.width * scale))
     new_h = max(1, round(img.height * scale))
-    img = img.resize((new_w, new_h), Image.LANCZOS)
+    img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
