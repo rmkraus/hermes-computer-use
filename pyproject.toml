@@ -50,7 +50,8 @@ nat = [
 all = [
     "hermes-computer-use[nat]",
 ]
-# Development tools
+# Development tools (includes LangChain so test_agent_tools.py runs in CI
+# without needing the non-PyPI nvidia-nat / deepagents packages)
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
@@ -58,6 +59,12 @@ dev = [
     "pytest-asyncio>=0.23",
     "mypy>=1.8",
     "ruff>=0.4.0",
+    # LangChain deps needed by agent/tools.py tests
+    "langchain-core>=0.3.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langgraph>=0.2.0",
+    "pydantic>=2.0",
 ]
 
 [tool.setuptools.packages.find]
